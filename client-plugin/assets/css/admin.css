@@ -1,0 +1,78 @@
+/* Premium Updates Client - Admin Styles */
+
+.puc-admin {
+    max-width: 900px;
+}
+
+.puc-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.puc-section h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Status badges */
+.puc-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.puc-status-managed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.puc-status-not-managed {
+    background: #f0f0f1;
+    color: #666;
+}
+
+/* Plugins table */
+.puc-plugins-table {
+    margin-top: 15px;
+}
+
+.puc-plugins-table .check-column {
+    width: 40px;
+    padding: 10px;
+}
+
+.puc-plugin-slug {
+    color: #666;
+}
+
+.puc-plugins-actions {
+    margin: 15px 0;
+}
+
+/* Test/Sync results */
+#puc-test-result,
+#puc-sync-result {
+    margin-left: 10px;
+    font-weight: 600;
+}
+
+#puc-test-result.success,
+#puc-sync-result.success {
+    color: #155724;
+}
+
+#puc-test-result.error,
+#puc-sync-result.error {
+    color: #721c24;
+}
+
+/* Form adjustments */
+.puc-section .form-table th {
+    width: 180px;
+}

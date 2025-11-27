@@ -1,0 +1,129 @@
+/* Premium Updates Server - Admin Styles */
+
+.pus-admin {
+    max-width: 1200px;
+}
+
+/* Status badges */
+.pus-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.pus-status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.pus-status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.pus-status-expired {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* License keys */
+.pus-license-key {
+    font-size: 11px;
+    background: #f0f0f1;
+    padding: 2px 6px;
+}
+
+.pus-license-key-large {
+    font-size: 16px;
+    background: #f0f0f1;
+    padding: 8px 12px;
+    display: inline-block;
+}
+
+/* Forms */
+.pus-form .form-table th {
+    width: 200px;
+}
+
+/* Settings page */
+.pus-settings-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.pus-settings-section h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.pus-api-url {
+    font-size: 14px;
+    background: #f0f0f1;
+    padding: 8px 12px;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+.pus-copy-btn {
+    vertical-align: middle !important;
+}
+
+.pus-instructions {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.pus-instructions ol {
+    margin-left: 20px;
+}
+
+.pus-instructions li {
+    margin-bottom: 8px;
+}
+
+/* Stats */
+.pus-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.pus-stat-box {
+    background: #f0f0f1;
+    padding: 20px 30px;
+    text-align: center;
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+.pus-stat-number {
+    display: block;
+    font-size: 36px;
+    font-weight: 700;
+    color: #2271b1;
+}
+
+.pus-stat-label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .pus-stats {
+        flex-direction: column;
+    }
+    
+    .pus-stat-box {
+        width: 100%;
+    }
+}
