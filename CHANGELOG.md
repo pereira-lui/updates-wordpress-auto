@@ -5,6 +5,32 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] - 2025-11-27
+
+### Adicionado
+- **Integração com Asaas para pagamentos**
+  - Suporte a PIX, Boleto e Cartão de Crédito
+  - Cobranças únicas e recorrentes (assinaturas)
+  - Webhooks para ativação automática de licenças
+  - Modo sandbox para testes
+
+- **Sistema de Planos**
+  - Gerenciamento de planos de preços
+  - Suporte a planos mensais, anuais e vitalícios
+  - Configuração de limite de sites por plano
+  - Lista de recursos personalizável
+
+- **Página de Checkout Pública**
+  - Shortcode [pus_pricing] para tabela de preços
+  - Shortcode [pus_checkout] para formulário de compra
+  - Design moderno e responsivo
+  - Validação de CPF/CNPJ
+
+- **Recursos Adicionais**
+  - E-mail automático com dados da licença após pagamento
+  - Logs de webhooks para debug
+  - Status de pagamento nas licenças
+
 ## [1.0.0] - 2025-11-27
 
 ### Adicionado

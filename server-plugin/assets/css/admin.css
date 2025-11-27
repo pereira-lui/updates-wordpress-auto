@@ -127,3 +127,103 @@
         width: 100%;
     }
 }
+
+/* Plans Grid */
+.pus-plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.pus-plan-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.pus-plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.pus-plan-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.pus-plan-id {
+    font-size: 12px;
+    background: #f0f0f1;
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: #666;
+}
+
+.pus-plan-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2271b1;
+    margin-bottom: 15px;
+}
+
+.pus-plan-cycle {
+    font-size: 14px;
+    font-weight: 400;
+    color: #666;
+}
+
+.pus-plan-details {
+    margin-bottom: 15px;
+}
+
+.pus-plan-details p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.pus-plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px;
+    font-size: 13px;
+}
+
+.pus-plan-features li {
+    padding: 5px 0;
+    padding-left: 20px;
+    position: relative;
+}
+
+.pus-plan-features li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #00a32a;
+}
+
+.pus-plan-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Payment status */
+.pus-payment-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.pus-payment-paid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.pus-payment-overdue {
+    background: #f8d7da;
+    color: #721c24;
+}

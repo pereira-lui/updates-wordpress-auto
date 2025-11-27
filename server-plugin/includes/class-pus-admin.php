@@ -49,6 +49,24 @@ class PUS_Admin {
 
         add_submenu_page(
             'premium-updates',
+            __('Planos', 'premium-updates-server'),
+            __('Planos', 'premium-updates-server'),
+            'manage_options',
+            'premium-updates-plans',
+            array($this, 'render_plans_page')
+        );
+
+        add_submenu_page(
+            'premium-updates',
+            __('Pagamentos (Asaas)', 'premium-updates-server'),
+            __('Pagamentos', 'premium-updates-server'),
+            'manage_options',
+            'premium-updates-asaas',
+            array($this, 'render_asaas_page')
+        );
+
+        add_submenu_page(
+            'premium-updates',
             __('Logs', 'premium-updates-server'),
             __('Logs', 'premium-updates-server'),
             'manage_options',
@@ -135,6 +153,26 @@ class PUS_Admin {
         if (isset($_POST['pus_save_settings']) && wp_verify_nonce($_POST['pus_nonce'], 'pus_save_settings')) {
             $this->save_settings();
         }
+
+        // Salvar configurações Asaas
+        if (isset($_POST['pus_save_asaas']) && wp_verify_nonce($_POST['pus_nonce'], 'pus_save_asaas')) {
+            $this->save_asaas_settings();
+        }
+
+        // Salvar plano
+        if (isset($_POST['pus_save_plan']) && wp_verify_nonce($_POST['pus_nonce'], 'pus_save_plan')) {
+            $this->save_plan();
+        }
+
+        // Deletar plano
+        if (isset($_GET['page']) && $_GET['page'] === 'premium-updates-plans' && isset($_GET['delete'])) {
+            $plan_id = sanitize_text_field($_GET['delete']);
+            if (wp_verify_nonce($_GET['_wpnonce'], 'delete_plan_' . $plan_id)) {
+                PUS_Plans::delete_plan($plan_id);
+                wp_redirect(admin_url('admin.php?page=premium-updates-plans&deleted=1'));
+                exit;
+            }
+        }
     }
 
     /**
@@ -203,6 +241,41 @@ class PUS_Admin {
     }
 
     /**
+     * Salva configurações do Asaas
+     */
+    private function save_asaas_settings() {
+        update_option('pus_asaas_sandbox', isset($_POST['pus_asaas_sandbox']) ? 1 : 0);
+        update_option('pus_asaas_api_key', sanitize_text_field($_POST['pus_asaas_api_key']));
+        update_option('pus_asaas_webhook_token', sanitize_text_field($_POST['pus_asaas_webhook_token']));
+        
+        wp_redirect(admin_url('admin.php?page=premium-updates-asaas&saved=1'));
+        exit;
+    }
+
+    /**
+     * Salva um plano
+     */
+    private function save_plan() {
+        $features = array_filter(array_map('trim', explode("\n", $_POST['plan_features'])));
+        
+        $plan_data = array(
+            'id' => sanitize_title($_POST['plan_id']),
+            'name' => sanitize_text_field($_POST['plan_name']),
+            'description' => sanitize_text_field($_POST['plan_description']),
+            'price' => floatval($_POST['plan_price']),
+            'type' => sanitize_text_field($_POST['plan_type']),
+            'cycle' => sanitize_text_field($_POST['plan_cycle']),
+            'max_sites' => intval($_POST['plan_max_sites']),
+            'features' => array_map('sanitize_text_field', $features)
+        );
+
+        PUS_Plans::save_plan($plan_data);
+        
+        wp_redirect(admin_url('admin.php?page=premium-updates-plans&saved=1'));
+        exit;
+    }
+
+    /**
      * Renderiza a página de plugins
      */
     public function render_plugins_page() {
@@ -247,5 +320,19 @@ class PUS_Admin {
      */
     public function render_settings_page() {
         include PUS_PLUGIN_DIR . 'templates/admin-settings.php';
+    }
+
+    /**
+     * Renderiza a página do Asaas
+     */
+    public function render_asaas_page() {
+        include PUS_PLUGIN_DIR . 'templates/admin-asaas.php';
+    }
+
+    /**
+     * Renderiza a página de planos
+     */
+    public function render_plans_page() {
+        include PUS_PLUGIN_DIR . 'templates/admin-plans.php';
     }
 }

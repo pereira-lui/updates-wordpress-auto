@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Premium Updates Server
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
- * Description: Servidor central para distribuição de atualizações de plugins premium para sites de clientes.
- * Version: 1.0.0
+ * Description: Servidor central para distribuição de atualizações de plugins premium para sites de clientes. Integrado com Asaas para pagamentos.
+ * Version: 1.1.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUS_VERSION', '1.0.0');
+define('PUS_VERSION', '1.1.0');
 define('PUS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -23,6 +23,10 @@ require_once PUS_PLUGIN_DIR . 'includes/class-pus-database.php';
 require_once PUS_PLUGIN_DIR . 'includes/class-pus-api.php';
 require_once PUS_PLUGIN_DIR . 'includes/class-pus-admin.php';
 require_once PUS_PLUGIN_DIR . 'includes/class-pus-plugin-manager.php';
+require_once PUS_PLUGIN_DIR . 'includes/class-pus-asaas.php';
+require_once PUS_PLUGIN_DIR . 'includes/class-pus-plans.php';
+require_once PUS_PLUGIN_DIR . 'includes/class-pus-checkout.php';
+require_once PUS_PLUGIN_DIR . 'includes/class-pus-webhook.php';
 
 /**
  * Classe principal do plugin servidor
@@ -47,6 +51,10 @@ class Premium_Updates_Server {
         
         add_action('init', array($this, 'init'));
         add_action('rest_api_init', array('PUS_API', 'register_routes'));
+        
+        // Inicializa o checkout e webhook
+        new PUS_Checkout();
+        new PUS_Webhook();
         
         if (is_admin()) {
             new PUS_Admin();
