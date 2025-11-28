@@ -1,0 +1,27 @@
+# Environment files
+.env
+.env.local
+
+# Storage files
+storage/plugins/*
+storage/logs/*
+!storage/plugins/.gitkeep
+!storage/logs/.gitkeep
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Composer (se usar)
+/vendor/
+composer.lock
+
+# Cache
+*.cache
+.phpunit.cache/
