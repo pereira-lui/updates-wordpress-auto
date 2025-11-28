@@ -61,6 +61,12 @@ class Premium_Updates_Client {
         add_action('wp_ajax_puc_renew_subscription', array($this, 'ajax_renew_subscription'));
         add_action('wp_ajax_puc_check_payment', array($this, 'ajax_check_payment'));
         add_action('wp_ajax_puc_check_license', array($this, 'ajax_check_license'));
+        add_action('wp_ajax_puc_get_account', array($this, 'ajax_get_account'));
+        add_action('wp_ajax_puc_get_payments', array($this, 'ajax_get_payments'));
+        add_action('wp_ajax_puc_get_updates_history', array($this, 'ajax_get_updates_history'));
+        
+        // Hook para registrar atualizações de plugins
+        add_action('upgrader_process_complete', array($this, 'log_plugin_update'), 10, 2);
         
         // Cron
         add_action('puc_check_updates', array($this, 'scheduled_check_updates'));
@@ -700,6 +706,134 @@ class Premium_Updates_Client {
             wp_send_json_success($result['license']);
         } else {
             wp_send_json_error($result['message'] ?? __('Erro ao verificar licença', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Obtém informações da conta
+     */
+    public function ajax_get_account() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('my/account');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao obter dados da conta', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Obtém histórico de pagamentos
+     */
+    public function ajax_get_payments() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('my/payments');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao obter pagamentos', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Obtém histórico de atualizações
+     */
+    public function ajax_get_updates_history() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('my/updates');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao obter histórico', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * Registra atualização de plugin no servidor
+     */
+    public function log_plugin_update($upgrader, $hook_extra) {
+        // Verifica se é atualização de plugin
+        if (!isset($hook_extra['type']) || $hook_extra['type'] !== 'plugin') {
+            return;
+        }
+
+        if (!isset($hook_extra['plugins']) || !is_array($hook_extra['plugins'])) {
+            return;
+        }
+
+        $managed_plugins = get_option('puc_managed_plugins', array());
+        
+        foreach ($hook_extra['plugins'] as $plugin_file) {
+            // Só registra plugins gerenciados
+            if (!in_array($plugin_file, $managed_plugins)) {
+                continue;
+            }
+
+            $parts = explode('/', $plugin_file);
+            $slug = $parts[0];
+
+            // Obtém dados do plugin
+            $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin_file);
+            $new_version = $plugin_data['Version'] ?? '';
+
+            // Obtém versão anterior (do cache de transient)
+            $update_plugins = get_site_transient('update_plugins');
+            $old_version = '';
+            if (isset($update_plugins->response[$plugin_file])) {
+                // A versão anterior era a atual do site antes da atualização
+                $old_version = $update_plugins->checked[$plugin_file] ?? '';
+            }
+
+            // Envia para o servidor
+            if (!empty($slug) && !empty($new_version)) {
+                $this->api_request('my/log-update', array(
+                    'plugin_slug' => $slug,
+                    'from_version' => $old_version,
+                    'to_version' => $new_version
+                ));
+            }
         }
     }
 }

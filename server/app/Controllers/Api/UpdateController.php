@@ -422,4 +422,254 @@ class UpdateController extends Controller {
             ]
         ]);
     }
+    
+    /**
+     * Histórico de pagamentos do cliente
+     * GET /api/v1/my/payments
+     */
+    public function myPayments() {
+        $licenseKey = $this->getInput('license_key');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Busca pagamentos da licença
+        $payments = \App\Models\Payment::findByLicense($license->id);
+        
+        $result = [];
+        $periodLabels = License::getPeriodLabels();
+        
+        foreach ($payments as $payment) {
+            $result[] = [
+                'id' => $payment->id,
+                'asaas_id' => $payment->asaas_id,
+                'amount' => floatval($payment->amount),
+                'status' => $payment->status,
+                'status_label' => $this->getPaymentStatusLabel($payment->status),
+                'payment_method' => $payment->payment_method,
+                'payment_method_label' => $this->getPaymentMethodLabel($payment->payment_method),
+                'period' => $payment->period ?? $license->period,
+                'period_label' => $periodLabels[$payment->period ?? $license->period] ?? '',
+                'due_date' => $payment->due_date,
+                'paid_at' => $payment->paid_at,
+                'boleto_url' => $payment->boleto_url,
+                'invoice_url' => $payment->invoice_url,
+                'created_at' => $payment->created_at
+            ];
+        }
+        
+        return $this->json([
+            'success' => true,
+            'payments' => $result,
+            'total' => count($result)
+        ]);
+    }
+    
+    /**
+     * Histórico de atualizações/downloads do cliente
+     * GET /api/v1/my/updates
+     */
+    public function myUpdates() {
+        $licenseKey = $this->getInput('license_key');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Busca logs de download da licença
+        $logs = ActivityLog::getByLicense($license->id, ['download', 'update'], 50);
+        
+        $result = [];
+        foreach ($logs as $log) {
+            $result[] = [
+                'action' => $log->action,
+                'plugin_slug' => $log->plugin_slug,
+                'plugin_name' => $log->plugin_name ?? $log->plugin_slug,
+                'version' => $log->version,
+                'ip_address' => $log->ip_address,
+                'created_at' => $log->created_at
+            ];
+        }
+        
+        return $this->json([
+            'success' => true,
+            'updates' => $result,
+            'total' => count($result)
+        ]);
+    }
+    
+    /**
+     * Informações completas da conta/assinatura do cliente
+     * GET /api/v1/my/account
+     */
+    public function myAccount() {
+        $licenseKey = $this->getInput('license_key');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        $periodLabels = License::getPeriodLabels();
+        
+        // Calcular dias restantes
+        $daysRemaining = null;
+        $isExpired = false;
+        
+        if ($license->expires_at) {
+            $expiresAt = strtotime($license->expires_at);
+            $now = time();
+            $daysRemaining = floor(($expiresAt - $now) / 86400);
+            $isExpired = $daysRemaining < 0;
+        }
+        
+        // Estatísticas
+        $totalPayments = \App\Models\Payment::countByLicense($license->id, 'paid');
+        $totalDownloads = ActivityLog::countByLicense($license->id, 'download');
+        $lastPayment = \App\Models\Payment::lastByLicense($license->id, 'paid');
+        
+        // Plugins disponíveis
+        $availablePlugins = Plugin::all(true);
+        $plugins = [];
+        foreach ($availablePlugins as $plugin) {
+            $plugins[] = [
+                'name' => $plugin->name,
+                'slug' => $plugin->slug,
+                'version' => $plugin->version
+            ];
+        }
+        
+        return $this->json([
+            'success' => true,
+            'account' => [
+                'name' => $license->client_name,
+                'email' => $license->client_email,
+                'license_key' => $license->license_key,
+                'status' => $license->status,
+                'status_label' => $this->getLicenseStatusLabel($license->status),
+                'period' => $license->period,
+                'period_label' => $periodLabels[$license->period] ?? $license->period,
+                'is_lifetime' => $license->period === 'lifetime',
+                'created_at' => $license->created_at,
+                'expires_at' => $license->expires_at,
+                'days_remaining' => $daysRemaining,
+                'is_expired' => $isExpired,
+                'is_friend' => $license->is_friend ? true : false,
+                'site_url' => $license->site_url
+            ],
+            'stats' => [
+                'total_payments' => $totalPayments,
+                'total_downloads' => $totalDownloads,
+                'last_payment_date' => $lastPayment ? $lastPayment->paid_at : null,
+                'last_payment_amount' => $lastPayment ? floatval($lastPayment->amount) : null
+            ],
+            'plugins' => $plugins
+        ]);
+    }
+    
+    /**
+     * Registra uma atualização feita pelo cliente
+     * POST /api/v1/my/log-update
+     */
+    public function logUpdate() {
+        $licenseKey = $this->getInput('license_key');
+        $pluginSlug = $this->getInput('plugin_slug');
+        $fromVersion = $this->getInput('from_version');
+        $toVersion = $this->getInput('to_version');
+        
+        if (empty($licenseKey) || empty($pluginSlug)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Dados incompletos'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Registra atualização
+        ActivityLog::update($license->id, $pluginSlug, $fromVersion, $toVersion);
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Atualização registrada'
+        ]);
+    }
+    
+    /**
+     * Helpers para labels
+     */
+    private function getPaymentStatusLabel($status) {
+        $labels = [
+            'pending' => 'Pendente',
+            'paid' => 'Pago',
+            'confirmed' => 'Confirmado',
+            'overdue' => 'Vencido',
+            'refunded' => 'Estornado',
+            'cancelled' => 'Cancelado'
+        ];
+        return $labels[$status] ?? $status;
+    }
+    
+    private function getPaymentMethodLabel($method) {
+        $labels = [
+            'pix' => 'PIX',
+            'boleto' => 'Boleto Bancário',
+            'credit_card' => 'Cartão de Crédito'
+        ];
+        return $labels[$method] ?? $method;
+    }
+    
+    private function getLicenseStatusLabel($status) {
+        $labels = [
+            'active' => 'Ativa',
+            'pending' => 'Pendente',
+            'expired' => 'Expirada',
+            'suspended' => 'Suspensa',
+            'cancelled' => 'Cancelada'
+        ];
+        return $labels[$status] ?? $status;
+    }
 }

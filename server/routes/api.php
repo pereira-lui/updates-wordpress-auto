@@ -38,6 +38,15 @@ Router::group(['prefix' => '/api/v1'], function() {
     Router::post('/subscription/renew', 'CheckoutController@renewSubscription');
     Router::get('/subscription/status/{payment_id}', 'CheckoutController@checkPaymentStatus');
     
+    // API Minha Conta - Relatórios do Cliente
+    Router::get('/my/account', 'Api\UpdateController@myAccount');
+    Router::post('/my/account', 'Api\UpdateController@myAccount');
+    Router::get('/my/payments', 'Api\UpdateController@myPayments');
+    Router::post('/my/payments', 'Api\UpdateController@myPayments');
+    Router::get('/my/updates', 'Api\UpdateController@myUpdates');
+    Router::post('/my/updates', 'Api\UpdateController@myUpdates');
+    Router::post('/my/log-update', 'Api\UpdateController@logUpdate');
+    
     // Webhook do Asaas
     Router::post('/webhook/asaas', 'Api\WebhookController@asaas');
 });

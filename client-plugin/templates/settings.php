@@ -6,6 +6,7 @@ if (!defined('ABSPATH')) {
 $license_key = get_option('puc_license_key', '');
 $server_url = get_option('puc_server_url', '');
 $license_status = get_option('puc_license_status', array());
+$has_license = !empty($license_key) && !empty($server_url);
 ?>
 <div class="wrap puc-admin">
     <h1><?php _e('Premium Updates Client', 'premium-updates-client'); ?></h1>
@@ -15,6 +16,11 @@ $license_status = get_option('puc_license_status', array());
         <a href="#tab-settings" class="nav-tab nav-tab-active" data-tab="settings"><?php _e('Configurações', 'premium-updates-client'); ?></a>
         <a href="#tab-subscription" class="nav-tab" data-tab="subscription"><?php _e('Assinatura', 'premium-updates-client'); ?></a>
         <a href="#tab-plugins" class="nav-tab" data-tab="plugins"><?php _e('Plugins', 'premium-updates-client'); ?></a>
+        <?php if ($has_license): ?>
+        <a href="#tab-account" class="nav-tab" data-tab="account"><?php _e('Minha Conta', 'premium-updates-client'); ?></a>
+        <a href="#tab-payments" class="nav-tab" data-tab="payments"><?php _e('Pagamentos', 'premium-updates-client'); ?></a>
+        <a href="#tab-updates-history" class="nav-tab" data-tab="updates-history"><?php _e('Histórico de Atualizações', 'premium-updates-client'); ?></a>
+        <?php endif; ?>
     </nav>
 
     <!-- Tab: Settings -->
@@ -286,4 +292,173 @@ $license_status = get_option('puc_license_status', array());
             <?php submit_button(__('Salvar Configurações', 'premium-updates-client')); ?>
         </form>
     </div>
+
+    <?php if ($has_license): ?>
+    <!-- Tab: Minha Conta -->
+    <div id="tab-account" class="puc-tab-content">
+        <div class="puc-section">
+            <h2><?php _e('Minha Conta', 'premium-updates-client'); ?></h2>
+            
+            <div id="puc-account-loading" class="puc-loading-container">
+                <span class="spinner is-active" style="float: none;"></span>
+                <p><?php _e('Carregando informações da conta...', 'premium-updates-client'); ?></p>
+            </div>
+            
+            <div id="puc-account-content" style="display: none;">
+                <div class="puc-account-grid">
+                    <!-- Card de Status -->
+                    <div class="puc-account-card puc-license-card">
+                        <div class="puc-account-card-header">
+                            <h3><?php _e('Status da Licença', 'premium-updates-client'); ?></h3>
+                            <span id="puc-account-status-badge" class="puc-status-badge"></span>
+                        </div>
+                        <div class="puc-account-card-body">
+                            <div class="puc-info-row">
+                                <span class="puc-info-label"><?php _e('Chave de Licença:', 'premium-updates-client'); ?></span>
+                                <code id="puc-account-license-key"></code>
+                            </div>
+                            <div class="puc-info-row">
+                                <span class="puc-info-label"><?php _e('Período:', 'premium-updates-client'); ?></span>
+                                <span id="puc-account-period"></span>
+                            </div>
+                            <div class="puc-info-row">
+                                <span class="puc-info-label"><?php _e('Data de Expiração:', 'premium-updates-client'); ?></span>
+                                <span id="puc-account-expires"></span>
+                            </div>
+                            <div class="puc-info-row" id="puc-days-remaining-row">
+                                <span class="puc-info-label"><?php _e('Dias Restantes:', 'premium-updates-client'); ?></span>
+                                <span id="puc-account-days"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card de Estatísticas -->
+                    <div class="puc-account-card puc-stats-card">
+                        <div class="puc-account-card-header">
+                            <h3><?php _e('Estatísticas', 'premium-updates-client'); ?></h3>
+                        </div>
+                        <div class="puc-account-card-body">
+                            <div class="puc-stats-grid">
+                                <div class="puc-stat-item">
+                                    <span class="puc-stat-value" id="puc-stat-total-payments">-</span>
+                                    <span class="puc-stat-label"><?php _e('Pagamentos', 'premium-updates-client'); ?></span>
+                                </div>
+                                <div class="puc-stat-item">
+                                    <span class="puc-stat-value" id="puc-stat-confirmed-payments">-</span>
+                                    <span class="puc-stat-label"><?php _e('Confirmados', 'premium-updates-client'); ?></span>
+                                </div>
+                                <div class="puc-stat-item">
+                                    <span class="puc-stat-value" id="puc-stat-downloads">-</span>
+                                    <span class="puc-stat-label"><?php _e('Downloads', 'premium-updates-client'); ?></span>
+                                </div>
+                                <div class="puc-stat-item">
+                                    <span class="puc-stat-value" id="puc-stat-updates">-</span>
+                                    <span class="puc-stat-label"><?php _e('Atualizações', 'premium-updates-client'); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Plugins Disponíveis -->
+                <div class="puc-account-section">
+                    <h3><?php _e('Plugins Disponíveis', 'premium-updates-client'); ?></h3>
+                    <div id="puc-account-plugins" class="puc-plugins-list"></div>
+                </div>
+                
+                <!-- Atividade Recente -->
+                <div class="puc-account-section">
+                    <h3><?php _e('Atividade Recente', 'premium-updates-client'); ?></h3>
+                    <div id="puc-account-activity"></div>
+                </div>
+            </div>
+            
+            <div id="puc-account-error" class="notice notice-error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Tab: Pagamentos -->
+    <div id="tab-payments" class="puc-tab-content">
+        <div class="puc-section">
+            <h2><?php _e('Histórico de Pagamentos', 'premium-updates-client'); ?></h2>
+            
+            <div id="puc-payments-loading" class="puc-loading-container">
+                <span class="spinner is-active" style="float: none;"></span>
+                <p><?php _e('Carregando pagamentos...', 'premium-updates-client'); ?></p>
+            </div>
+            
+            <div id="puc-payments-content" style="display: none;">
+                <div id="puc-payments-summary" class="puc-payments-summary"></div>
+                
+                <table id="puc-payments-table" class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('ID', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Data', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Período', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Método', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Valor', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Status', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Ações', 'premium-updates-client'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="puc-payments-tbody">
+                    </tbody>
+                </table>
+                
+                <div id="puc-payments-empty" class="puc-empty-state" style="display: none;">
+                    <span class="dashicons dashicons-format-aside"></span>
+                    <p><?php _e('Nenhum pagamento encontrado.', 'premium-updates-client'); ?></p>
+                </div>
+            </div>
+            
+            <div id="puc-payments-error" class="notice notice-error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Tab: Histórico de Atualizações -->
+    <div id="tab-updates-history" class="puc-tab-content">
+        <div class="puc-section">
+            <h2><?php _e('Histórico de Atualizações', 'premium-updates-client'); ?></h2>
+            
+            <div id="puc-updates-loading" class="puc-loading-container">
+                <span class="spinner is-active" style="float: none;"></span>
+                <p><?php _e('Carregando histórico...', 'premium-updates-client'); ?></p>
+            </div>
+            
+            <div id="puc-updates-content" style="display: none;">
+                <div id="puc-updates-stats" class="puc-updates-stats"></div>
+                
+                <div class="puc-updates-filter">
+                    <select id="puc-updates-type-filter">
+                        <option value=""><?php _e('Todos os tipos', 'premium-updates-client'); ?></option>
+                        <option value="download"><?php _e('Downloads', 'premium-updates-client'); ?></option>
+                        <option value="update"><?php _e('Atualizações', 'premium-updates-client'); ?></option>
+                    </select>
+                </div>
+                
+                <table id="puc-updates-table" class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Data', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Tipo', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Plugin', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Versão', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Detalhes', 'premium-updates-client'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="puc-updates-tbody">
+                    </tbody>
+                </table>
+                
+                <div id="puc-updates-empty" class="puc-empty-state" style="display: none;">
+                    <span class="dashicons dashicons-update"></span>
+                    <p><?php _e('Nenhum download ou atualização registrada.', 'premium-updates-client'); ?></p>
+                </div>
+            </div>
+            
+            <div id="puc-updates-error" class="notice notice-error" style="display: none;"></div>
+        </div>
+    </div>
+    <?php endif; ?>
 </div>

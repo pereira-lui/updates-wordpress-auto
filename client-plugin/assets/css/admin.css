@@ -179,6 +179,11 @@
     color: #fff;
 }
 
+.puc-status-badge.pending {
+    background: #dba617;
+    color: #fff;
+}
+
 .puc-period-badge {
     display: inline-block;
     padding: 5px 15px;
@@ -310,6 +315,346 @@
     to { transform: rotate(360deg); }
 }
 
+/* Loading Container */
+.puc-loading-container {
+    text-align: center;
+    padding: 40px;
+}
+
+.puc-loading-container .spinner {
+    float: none;
+    margin: 0 auto 10px;
+}
+
+/* Account Grid */
+.puc-account-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.puc-account-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.puc-account-card-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.puc-account-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.puc-account-card-body {
+    padding: 20px;
+}
+
+.puc-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.puc-info-row:last-child {
+    border-bottom: none;
+}
+
+.puc-info-label {
+    color: #666;
+    font-size: 13px;
+}
+
+.puc-license-card.active {
+    border-color: #00a32a;
+}
+
+.puc-license-card.expired {
+    border-color: #d63638;
+}
+
+/* Stats Grid */
+.puc-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.puc-stat-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.puc-stat-value {
+    display: block;
+    font-size: 28px;
+    font-weight: bold;
+    color: #2271b1;
+}
+
+.puc-stat-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Account Section */
+.puc-account-section {
+    margin-top: 30px;
+}
+
+.puc-account-section h3 {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Plugins List */
+.puc-plugins-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.puc-plugin-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.puc-plugin-item .dashicons {
+    color: #2271b1;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.puc-plugin-info {
+    flex: 1;
+}
+
+.puc-plugin-name {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.puc-plugin-version {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Activity List */
+.puc-activity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.puc-activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.puc-activity-item:last-child {
+    border-bottom: none;
+}
+
+.puc-activity-icon {
+    width: 36px;
+    height: 36px;
+    background: #f0f6fc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.puc-activity-icon.download {
+    background: #d4edda;
+    color: #155724;
+}
+
+.puc-activity-icon.update {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.puc-activity-content {
+    flex: 1;
+}
+
+.puc-activity-title {
+    font-weight: 500;
+    color: #1d2327;
+}
+
+.puc-activity-meta {
+    font-size: 12px;
+    color: #666;
+}
+
+.puc-activity-time {
+    font-size: 12px;
+    color: #999;
+}
+
+/* Payments Summary */
+.puc-payments-summary {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.puc-summary-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+    flex: 1;
+    text-align: center;
+}
+
+.puc-summary-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2271b1;
+}
+
+.puc-summary-label {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.puc-summary-card.success {
+    border-color: #00a32a;
+}
+
+.puc-summary-card.success .puc-summary-value {
+    color: #00a32a;
+}
+
+.puc-summary-card.warning {
+    border-color: #dba617;
+}
+
+.puc-summary-card.warning .puc-summary-value {
+    color: #dba617;
+}
+
+/* Payment Status */
+.puc-payment-status {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.puc-payment-status.confirmed,
+.puc-payment-status.paid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.puc-payment-status.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.puc-payment-status.cancelled,
+.puc-payment-status.failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Updates Stats */
+.puc-updates-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.puc-updates-filter {
+    margin-bottom: 15px;
+}
+
+.puc-updates-filter select {
+    min-width: 200px;
+}
+
+/* Update Type Badge */
+.puc-update-type {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.puc-update-type.download {
+    background: #d4edda;
+    color: #155724;
+}
+
+.puc-update-type.update {
+    background: #cce5ff;
+    color: #004085;
+}
+
+/* Empty State */
+.puc-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.puc-empty-state .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #ddd;
+    margin-bottom: 15px;
+}
+
+.puc-empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Version Display */
+.puc-version-info {
+    color: #666;
+}
+
+.puc-version-arrow {
+    margin: 0 5px;
+    color: #999;
+}
+
 /* Responsive */
 @media screen and (max-width: 782px) {
     .puc-pricing-cards {
@@ -328,6 +673,23 @@
         display: block;
         width: 100%;
         margin-bottom: 10px;
+    }
+    
+    .puc-account-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .puc-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .puc-payments-summary,
+    .puc-updates-stats {
+        flex-direction: column;
+    }
+    
+    .puc-plugins-list {
+        grid-template-columns: 1fr;
     }
 }
 

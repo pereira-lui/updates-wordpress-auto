@@ -12,6 +12,7 @@ class ActivityLog {
     const TYPE_LOGIN = 'login';
     const TYPE_LICENSE_CHECK = 'license_check';
     const TYPE_DOWNLOAD = 'download';
+    const TYPE_UPDATE = 'update';
     const TYPE_PAYMENT = 'payment';
     const TYPE_WEBHOOK = 'webhook';
     const TYPE_ADMIN = 'admin';
@@ -99,6 +100,55 @@ class ActivityLog {
                 'user_name' => $user ? $user->name : 'Sistema'
             ])
         );
+    }
+    
+    public static function update($licenseId, $pluginSlug, $fromVersion, $toVersion) {
+        return self::log(self::TYPE_UPDATE,
+            "Atualização do plugin: {$pluginSlug} ({$fromVersion} → {$toVersion})",
+            [
+                'license_id' => $licenseId,
+                'plugin_slug' => $pluginSlug,
+                'from_version' => $fromVersion,
+                'to_version' => $toVersion
+            ]
+        );
+    }
+    
+    public static function getByLicense($licenseId, $types = [], $limit = 50) {
+        $sql = "SELECT al.*, 
+                       JSON_UNQUOTE(JSON_EXTRACT(al.data, '$.plugin_slug')) as plugin_slug,
+                       JSON_UNQUOTE(JSON_EXTRACT(al.data, '$.to_version')) as version,
+                       p.name as plugin_name
+                FROM activity_logs al
+                LEFT JOIN plugins p ON JSON_UNQUOTE(JSON_EXTRACT(al.data, '$.plugin_slug')) = p.slug
+                WHERE al.license_id = ?";
+        $params = [$licenseId];
+        
+        if (!empty($types)) {
+            $placeholders = implode(',', array_fill(0, count($types), '?'));
+            $sql .= " AND al.type IN ({$placeholders})";
+            $params = array_merge($params, $types);
+        }
+        
+        $sql .= " ORDER BY al.created_at DESC LIMIT ?";
+        $params[] = $limit;
+        
+        return Database::select($sql, $params);
+    }
+    
+    public static function countByLicense($licenseId, $type = null) {
+        if ($type) {
+            $result = Database::selectOne(
+                "SELECT COUNT(*) as total FROM activity_logs WHERE license_id = ? AND type = ?",
+                [$licenseId, $type]
+            );
+        } else {
+            $result = Database::selectOne(
+                "SELECT COUNT(*) as total FROM activity_logs WHERE license_id = ?",
+                [$licenseId]
+            );
+        }
+        return $result ? $result->total : 0;
     }
     
     public static function cleanup($days = 90) {

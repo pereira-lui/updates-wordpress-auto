@@ -6,6 +6,9 @@
     'use strict';
 
     var pricesLoaded = false;
+    var accountLoaded = false;
+    var paymentsLoaded = false;
+    var updatesLoaded = false;
 
     $(document).ready(function() {
         
@@ -26,6 +29,21 @@
             // Load prices when subscription tab is opened
             if (tab === 'subscription' && !pricesLoaded) {
                 loadPrices();
+            }
+            
+            // Load account data
+            if (tab === 'account' && !accountLoaded) {
+                loadAccountData();
+            }
+            
+            // Load payments
+            if (tab === 'payments' && !paymentsLoaded) {
+                loadPayments();
+            }
+            
+            // Load updates history
+            if (tab === 'updates-history' && !updatesLoaded) {
+                loadUpdatesHistory();
             }
         });
         
@@ -420,6 +438,309 @@
             
             $(this).val(value);
         });
+
+        // Load account data
+        function loadAccountData() {
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_get_account',
+                    nonce: pucAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        accountLoaded = true;
+                        renderAccountData(response.data);
+                    } else {
+                        $('#puc-account-loading').hide();
+                        $('#puc-account-error').html('<p>' + (response.data || 'Erro ao carregar dados da conta') + '</p>').show();
+                    }
+                },
+                error: function() {
+                    $('#puc-account-loading').hide();
+                    $('#puc-account-error').html('<p>Erro de conexão com o servidor</p>').show();
+                }
+            });
+        }
+
+        // Render account data
+        function renderAccountData(data) {
+            var license = data.license || {};
+            var stats = data.stats || {};
+            var plugins = data.plugins || [];
+            var recentActivity = data.recent_activity || [];
+
+            // Status badge
+            var statusClass = license.status === 'active' ? 'active' : 'expired';
+            var statusLabel = license.status_label || license.status;
+            $('#puc-account-status-badge').text(statusLabel).addClass(statusClass);
+            $('.puc-license-card').addClass(statusClass);
+
+            // License info
+            $('#puc-account-license-key').text(license.license_key || '-');
+            $('#puc-account-period').text(license.period_label || '-');
+            $('#puc-account-expires').text(license.expires_at ? formatDate(license.expires_at) : 'Vitalícia');
+            
+            if (license.days_remaining !== undefined && license.days_remaining !== null) {
+                var daysText = license.days_remaining > 0 ? license.days_remaining + ' dias' : 'Expirado';
+                if (license.days_remaining <= 7 && license.days_remaining > 0) {
+                    daysText = '<span style="color:#d63638;font-weight:bold;">' + daysText + '</span>';
+                }
+                $('#puc-account-days').html(daysText);
+            } else {
+                $('#puc-days-remaining-row').hide();
+            }
+
+            // Stats
+            $('#puc-stat-total-payments').text(stats.total_payments || 0);
+            $('#puc-stat-confirmed-payments').text(stats.confirmed_payments || 0);
+            $('#puc-stat-downloads').text(stats.downloads || 0);
+            $('#puc-stat-updates').text(stats.updates || 0);
+
+            // Plugins
+            var pluginsHtml = '';
+            if (plugins.length > 0) {
+                plugins.forEach(function(plugin) {
+                    pluginsHtml += '<div class="puc-plugin-item">' +
+                        '<span class="dashicons dashicons-admin-plugins"></span>' +
+                        '<div class="puc-plugin-info">' +
+                        '<div class="puc-plugin-name">' + escapeHtml(plugin.name) + '</div>' +
+                        '<div class="puc-plugin-version">v' + escapeHtml(plugin.version) + '</div>' +
+                        '</div></div>';
+                });
+            } else {
+                pluginsHtml = '<p>Nenhum plugin disponível</p>';
+            }
+            $('#puc-account-plugins').html(pluginsHtml);
+
+            // Recent Activity
+            var activityHtml = '';
+            if (recentActivity.length > 0) {
+                activityHtml = '<ul class="puc-activity-list">';
+                recentActivity.forEach(function(activity) {
+                    var iconClass = activity.type === 'download' ? 'download' : 'update';
+                    var icon = activity.type === 'download' ? 'dashicons-download' : 'dashicons-update';
+                    
+                    activityHtml += '<li class="puc-activity-item">' +
+                        '<div class="puc-activity-icon ' + iconClass + '">' +
+                        '<span class="dashicons ' + icon + '"></span>' +
+                        '</div>' +
+                        '<div class="puc-activity-content">' +
+                        '<div class="puc-activity-title">' + escapeHtml(activity.description || activity.plugin_name || 'Atividade') + '</div>' +
+                        '<div class="puc-activity-meta">' + (activity.plugin_name || '') + '</div>' +
+                        '</div>' +
+                        '<div class="puc-activity-time">' + formatDate(activity.created_at) + '</div>' +
+                        '</li>';
+                });
+                activityHtml += '</ul>';
+            } else {
+                activityHtml = '<p>Nenhuma atividade recente</p>';
+            }
+            $('#puc-account-activity').html(activityHtml);
+
+            $('#puc-account-loading').hide();
+            $('#puc-account-content').show();
+        }
+
+        // Load payments
+        function loadPayments() {
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_get_payments',
+                    nonce: pucAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        paymentsLoaded = true;
+                        renderPayments(response.data);
+                    } else {
+                        $('#puc-payments-loading').hide();
+                        $('#puc-payments-error').html('<p>' + (response.data || 'Erro ao carregar pagamentos') + '</p>').show();
+                    }
+                },
+                error: function() {
+                    $('#puc-payments-loading').hide();
+                    $('#puc-payments-error').html('<p>Erro de conexão com o servidor</p>').show();
+                }
+            });
+        }
+
+        // Render payments
+        function renderPayments(data) {
+            var payments = data.payments || [];
+            var summary = data.summary || {};
+
+            // Summary cards
+            var summaryHtml = '<div class="puc-summary-card">' +
+                '<div class="puc-summary-value">' + (summary.total || 0) + '</div>' +
+                '<div class="puc-summary-label">Total de Pagamentos</div>' +
+                '</div>' +
+                '<div class="puc-summary-card success">' +
+                '<div class="puc-summary-value">' + (summary.confirmed || 0) + '</div>' +
+                '<div class="puc-summary-label">Confirmados</div>' +
+                '</div>' +
+                '<div class="puc-summary-card warning">' +
+                '<div class="puc-summary-value">' + (summary.pending || 0) + '</div>' +
+                '<div class="puc-summary-label">Pendentes</div>' +
+                '</div>' +
+                '<div class="puc-summary-card">' +
+                '<div class="puc-summary-value">R$ ' + formatMoney(summary.total_amount || 0) + '</div>' +
+                '<div class="puc-summary-label">Total Pago</div>' +
+                '</div>';
+            $('#puc-payments-summary').html(summaryHtml);
+
+            // Payments table
+            if (payments.length > 0) {
+                var tbodyHtml = '';
+                payments.forEach(function(payment) {
+                    var statusClass = payment.status;
+                    tbodyHtml += '<tr>' +
+                        '<td>#' + payment.id + '</td>' +
+                        '<td>' + formatDate(payment.created_at) + '</td>' +
+                        '<td>' + escapeHtml(payment.period_label || '-') + '</td>' +
+                        '<td>' + escapeHtml(payment.method_label || payment.payment_method) + '</td>' +
+                        '<td>R$ ' + formatMoney(payment.amount) + '</td>' +
+                        '<td><span class="puc-payment-status ' + statusClass + '">' + escapeHtml(payment.status_label || payment.status) + '</span></td>' +
+                        '<td>';
+                    
+                    if (payment.boleto_url) {
+                        tbodyHtml += '<a href="' + payment.boleto_url + '" target="_blank" class="button button-small">Ver Boleto</a>';
+                    }
+                    
+                    tbodyHtml += '</td></tr>';
+                });
+                $('#puc-payments-tbody').html(tbodyHtml);
+                $('#puc-payments-table').show();
+                $('#puc-payments-empty').hide();
+            } else {
+                $('#puc-payments-table').hide();
+                $('#puc-payments-empty').show();
+            }
+
+            $('#puc-payments-loading').hide();
+            $('#puc-payments-content').show();
+        }
+
+        // Load updates history
+        function loadUpdatesHistory() {
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_get_updates_history',
+                    nonce: pucAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        updatesLoaded = true;
+                        renderUpdatesHistory(response.data);
+                    } else {
+                        $('#puc-updates-loading').hide();
+                        $('#puc-updates-error').html('<p>' + (response.data || 'Erro ao carregar histórico') + '</p>').show();
+                    }
+                },
+                error: function() {
+                    $('#puc-updates-loading').hide();
+                    $('#puc-updates-error').html('<p>Erro de conexão com o servidor</p>').show();
+                }
+            });
+        }
+
+        // Render updates history
+        function renderUpdatesHistory(data) {
+            var updates = data.updates || [];
+            var stats = data.stats || {};
+
+            // Stats
+            var statsHtml = '<div class="puc-summary-card">' +
+                '<div class="puc-summary-value">' + (stats.total || 0) + '</div>' +
+                '<div class="puc-summary-label">Total de Atividades</div>' +
+                '</div>' +
+                '<div class="puc-summary-card success">' +
+                '<div class="puc-summary-value">' + (stats.downloads || 0) + '</div>' +
+                '<div class="puc-summary-label">Downloads</div>' +
+                '</div>' +
+                '<div class="puc-summary-card">' +
+                '<div class="puc-summary-value">' + (stats.updates || 0) + '</div>' +
+                '<div class="puc-summary-label">Atualizações</div>' +
+                '</div>';
+            $('#puc-updates-stats').html(statsHtml);
+
+            // Store updates for filtering
+            window.pucUpdatesData = updates;
+
+            // Render table
+            renderUpdatesTable(updates);
+
+            $('#puc-updates-loading').hide();
+            $('#puc-updates-content').show();
+        }
+
+        // Render updates table
+        function renderUpdatesTable(updates) {
+            if (updates.length > 0) {
+                var tbodyHtml = '';
+                updates.forEach(function(update) {
+                    var typeClass = update.type;
+                    var typeLabel = update.type === 'download' ? 'Download' : 'Atualização';
+                    
+                    var versionInfo = '';
+                    if (update.type === 'update' && update.from_version && update.to_version) {
+                        versionInfo = '<span class="puc-version-info">' + 
+                            escapeHtml(update.from_version) + 
+                            '<span class="puc-version-arrow">→</span>' + 
+                            escapeHtml(update.to_version) + '</span>';
+                    } else if (update.version) {
+                        versionInfo = 'v' + escapeHtml(update.version);
+                    }
+                    
+                    tbodyHtml += '<tr data-type="' + update.type + '">' +
+                        '<td>' + formatDate(update.created_at) + '</td>' +
+                        '<td><span class="puc-update-type ' + typeClass + '">' + typeLabel + '</span></td>' +
+                        '<td>' + escapeHtml(update.plugin_name || update.plugin_slug || '-') + '</td>' +
+                        '<td>' + versionInfo + '</td>' +
+                        '<td>' + escapeHtml(update.description || '-') + '</td>' +
+                        '</tr>';
+                });
+                $('#puc-updates-tbody').html(tbodyHtml);
+                $('#puc-updates-table').show();
+                $('#puc-updates-empty').hide();
+            } else {
+                $('#puc-updates-table').hide();
+                $('#puc-updates-empty').show();
+            }
+        }
+
+        // Filter updates by type
+        $('#puc-updates-type-filter').on('change', function() {
+            var filterType = $(this).val();
+            
+            if (!filterType) {
+                renderUpdatesTable(window.pucUpdatesData || []);
+            } else {
+                var filtered = (window.pucUpdatesData || []).filter(function(update) {
+                    return update.type === filterType;
+                });
+                renderUpdatesTable(filtered);
+            }
+        });
+
+        // Helper functions
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            var date = new Date(dateStr);
+            return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
     });
 
 })(jQuery);

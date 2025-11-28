@@ -75,6 +75,41 @@ class Payment {
         );
     }
     
+    public static function findByLicense($licenseId) {
+        return Database::select(
+            "SELECT * FROM payments WHERE license_id = ? ORDER BY created_at DESC",
+            [$licenseId]
+        );
+    }
+    
+    public static function countByLicense($licenseId, $status = null) {
+        if ($status) {
+            $result = Database::selectOne(
+                "SELECT COUNT(*) as total FROM payments WHERE license_id = ? AND status = ?",
+                [$licenseId, $status]
+            );
+        } else {
+            $result = Database::selectOne(
+                "SELECT COUNT(*) as total FROM payments WHERE license_id = ?",
+                [$licenseId]
+            );
+        }
+        return $result ? $result->total : 0;
+    }
+    
+    public static function lastByLicense($licenseId, $status = null) {
+        if ($status) {
+            return Database::selectOne(
+                "SELECT * FROM payments WHERE license_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1",
+                [$licenseId, $status]
+            );
+        }
+        return Database::selectOne(
+            "SELECT * FROM payments WHERE license_id = ? ORDER BY created_at DESC LIMIT 1",
+            [$licenseId]
+        );
+    }
+    
     public static function create($data) {
         $data['created_at'] = date('Y-m-d H:i:s');
         return Database::insert('payments', $data);
