@@ -16,7 +16,7 @@ class AuthController extends Controller {
     public function loginForm() {
         // Se já está logado, redireciona
         if (auth()) {
-            redirect('/admin');
+            redirect(url('/admin'));
         }
         
         return $this->view('auth/login');
@@ -26,37 +26,46 @@ class AuthController extends Controller {
      * Processa o login
      */
     public function login() {
-        $errors = $this->validate([
+        $errors = $this->validate($_POST, [
             'login' => 'required',
             'password' => 'required'
         ]);
         
         if (!empty($errors)) {
-            flash('error', 'Preencha todos os campos');
-            redirect('/login');
+            flash_set('error', 'Preencha todos os campos');
+            redirect(url('/login'));
         }
         
         // Verifica CSRF
-        if (!verify_csrf($_POST['_token'] ?? '')) {
-            flash('error', 'Token de segurança inválido');
-            redirect('/login');
+        if (!csrf_verify()) {
+            flash_set('error', 'Token de segurança inválido');
+            redirect(url('/login'));
         }
         
         $user = User::authenticate($_POST['login'], $_POST['password']);
         
         if (!$user) {
-            flash('error', 'Credenciais inválidas');
-            redirect('/login');
+            flash_set('error', 'Credenciais inválidas');
+            redirect(url('/login'));
         }
         
         // Define sessão
-        $_SESSION['user_id'] = $user->id;
-        $_SESSION['user_name'] = $user->name;
-        $_SESSION['user_email'] = $user->email;
-        $_SESSION['user_role'] = $user->role;
+        session_set('user', [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role
+        ]);
         
-        flash('success', 'Bem-vindo, ' . $user->name . '!');
-        redirect('/admin');
+        // Atualiza último login
+        User::updateLastLogin($user->id);
+        
+        flash_set('success', 'Bem-vindo, ' . $user->name . '!');
+        
+        // Redireciona para URL pretendida ou admin
+        $intended = session('_intended') ?: url('/admin');
+        session_forget('_intended');
+        redirect($intended);
     }
     
     /**
@@ -64,7 +73,7 @@ class AuthController extends Controller {
      */
     public function logout() {
         session_destroy();
-        redirect('/login');
+        redirect(url('/login'));
     }
     
     /**
@@ -78,21 +87,18 @@ class AuthController extends Controller {
      * Processa recuperação de senha
      */
     public function forgot() {
-        $errors = $this->validate(['email' => 'required|email']);
+        $errors = $this->validate($_POST, ['email' => 'required|email']);
         
         if (!empty($errors)) {
-            flash('error', 'Informe um e-mail válido');
-            redirect('/forgot-password');
+            flash_set('error', 'Informe um e-mail válido');
+            redirect(url('/forgot-password'));
         }
         
         $token = User::generatePasswordReset($_POST['email']);
         
         // Sempre mostra mensagem de sucesso para não revelar se email existe
-        flash('success', 'Se o e-mail existir em nossa base, você receberá um link de recuperação');
-        redirect('/login');
-        
-        // TODO: Enviar e-mail com link de recuperação
-        // mail($_POST['email'], 'Recuperação de senha', url('/reset-password?token=' . $token));
+        flash_set('success', 'Se o e-mail existir em nossa base, você receberá um link de recuperação');
+        redirect(url('/login'));
     }
     
     /**
@@ -101,8 +107,8 @@ class AuthController extends Controller {
     public function resetForm() {
         $token = $_GET['token'] ?? '';
         if (empty($token)) {
-            flash('error', 'Token inválido');
-            redirect('/login');
+            flash_set('error', 'Token inválido');
+            redirect(url('/login'));
         }
         
         return $this->view('auth/reset', ['token' => $token]);
@@ -112,30 +118,30 @@ class AuthController extends Controller {
      * Processa reset de senha
      */
     public function reset() {
-        $errors = $this->validate([
+        $errors = $this->validate($_POST, [
             'token' => 'required',
             'password' => 'required|min:6',
             'password_confirmation' => 'required'
         ]);
         
         if (!empty($errors)) {
-            flash('error', 'Preencha todos os campos corretamente');
-            redirect('/reset-password?token=' . $_POST['token']);
+            flash_set('error', 'Preencha todos os campos corretamente');
+            redirect(url('/reset-password?token=' . $_POST['token']));
         }
         
         if ($_POST['password'] !== $_POST['password_confirmation']) {
-            flash('error', 'As senhas não conferem');
-            redirect('/reset-password?token=' . $_POST['token']);
+            flash_set('error', 'As senhas não conferem');
+            redirect(url('/reset-password?token=' . $_POST['token']));
         }
         
         $result = User::resetPassword($_POST['token'], $_POST['password']);
         
         if (!$result['success']) {
-            flash('error', $result['message']);
-            redirect('/reset-password?token=' . $_POST['token']);
+            flash_set('error', $result['message']);
+            redirect(url('/reset-password?token=' . $_POST['token']));
         }
         
-        flash('success', 'Senha alterada com sucesso!');
-        redirect('/login');
+        flash_set('success', 'Senha alterada com sucesso!');
+        redirect(url('/login'));
     }
 }

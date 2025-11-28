@@ -140,4 +140,11 @@ class User {
         $result = Database::selectOne("SELECT COUNT(*) as total FROM users");
         return $result ? $result->total : 0;
     }
+    
+    public static function updateLastLogin($id) {
+        return Database::update('users', [
+            'last_login' => date('Y-m-d H:i:s'),
+            'last_ip' => $_SERVER['REMOTE_ADDR'] ?? ''
+        ], 'id = ?', [$id]);
+    }
 }
