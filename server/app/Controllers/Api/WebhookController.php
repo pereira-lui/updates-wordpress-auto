@@ -5,7 +5,6 @@ namespace App\Controllers\Api;
 use App\Core\Controller;
 use App\Models\License;
 use App\Models\Payment;
-use App\Models\Plan;
 use App\Models\ActivityLog;
 
 /**
@@ -114,14 +113,8 @@ class WebhookController extends Controller {
             $license = License::find($payment->license_id);
             
             if ($license && $license->status === 'pending') {
-                // Calcula expiração baseada no plano
-                $expiresAt = null;
-                if ($license->plan_id) {
-                    $plan = Plan::find($license->plan_id);
-                    if ($plan) {
-                        $expiresAt = Plan::calculateExpiration($plan->period);
-                    }
-                }
+                // Calcula expiração baseada no período da licença
+                $expiresAt = License::calculateExpiration($license->period);
                 
                 License::update($license->id, [
                     'status' => 'active',

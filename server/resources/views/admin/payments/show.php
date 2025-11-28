@@ -1,5 +1,15 @@
 <?php $this->layout('layouts/admin', ['title' => 'Detalhes do Pagamento']); ?>
 
+<?php
+$periodLabels = [
+    'monthly' => 'Mensal',
+    'quarterly' => 'Trimestral',
+    'semiannual' => 'Semestral',
+    'yearly' => 'Anual',
+    'lifetime' => 'Vitalício'
+];
+?>
+
 <div class="row">
     <div class="col-lg-8">
         <div class="card">
@@ -16,8 +26,8 @@
                         <code><?= htmlspecialchars($payment->license_key ?? '-') ?></code>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-muted mb-1">Plano</h6>
-                        <p class="mb-0"><?= htmlspecialchars($payment->plan_name ?? '-') ?></p>
+                        <h6 class="text-muted mb-1">Período</h6>
+                        <p class="mb-0"><?= $periodLabels[$payment->period] ?? $payment->period ?? '-' ?></p>
                     </div>
                     <div class="col-md-6">
                         <h6 class="text-muted mb-1">Valor</h6>

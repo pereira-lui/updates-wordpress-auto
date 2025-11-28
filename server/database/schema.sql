@@ -1,15 +1,9 @@
 -- =============================================
 -- Premium Updates - Database Schema
 -- =============================================
--- NOTA: Importe este arquivo no banco de dados já existente
--- Não é necessário criar o banco, use o que já existe (ex: updates-wp)
+-- Sistema simplificado: Cliente contrata direto no plugin WordPress
+-- Períodos: mensal, trimestral, semestral, anual, vitalícia
 -- =============================================
-
--- Descomente as linhas abaixo APENAS se tiver permissão para criar banco
--- CREATE DATABASE IF NOT EXISTS `premium_updates` 
--- CHARACTER SET utf8mb4 
--- COLLATE utf8mb4_unicode_ci;
--- USE `premium_updates`;
 
 -- ---------------------------------------------
 -- Tabela: users (Usuários administrativos)
@@ -32,30 +26,9 @@ CREATE TABLE IF NOT EXISTS `users` (
 ) ENGINE=InnoDB;
 
 -- Usuário admin padrão (senha: admin123)
--- Para gerar nova hash: php -r "echo password_hash('admin123', PASSWORD_DEFAULT);"
 INSERT INTO `users` (`username`, `email`, `password`, `name`, `role`) VALUES
-('admin', 'admin@admin.com', '$2y$10$8K1p/a0dL1LXMw0kL5T5/.Yk1qbVPZ5D5D5D5D5D5D5D5D5D5D5Du', 'Administrador', 'admin')
+('admin', 'admin@admin.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador', 'admin')
 ON DUPLICATE KEY UPDATE `username` = 'admin';
-
--- ---------------------------------------------
--- Tabela: plans (Planos de assinatura)
--- ---------------------------------------------
-CREATE TABLE IF NOT EXISTS `plans` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(100) NOT NULL,
-    `slug` VARCHAR(100) NOT NULL UNIQUE,
-    `description` TEXT NULL,
-    `price` DECIMAL(10, 2) NOT NULL,
-    `period` ENUM('monthly', 'yearly', 'lifetime') NOT NULL DEFAULT 'monthly',
-    `features` TEXT NULL,
-    `sort_order` INT DEFAULT 0,
-    `is_active` TINYINT(1) DEFAULT 1,
-    `is_featured` TINYINT(1) DEFAULT 0,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_slug` (`slug`),
-    INDEX `idx_active` (`is_active`)
-) ENGINE=InnoDB;
 
 -- ---------------------------------------------
 -- Tabela: plugins (Plugins gerenciados)
@@ -83,18 +56,8 @@ CREATE TABLE IF NOT EXISTS `plugins` (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------
--- Tabela: plan_plugins (Relação planos-plugins)
--- ---------------------------------------------
-CREATE TABLE IF NOT EXISTS `plan_plugins` (
-    `plan_id` INT UNSIGNED NOT NULL,
-    `plugin_id` INT UNSIGNED NOT NULL,
-    PRIMARY KEY (`plan_id`, `plugin_id`),
-    FOREIGN KEY (`plan_id`) REFERENCES `plans`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- ---------------------------------------------
 -- Tabela: licenses (Licenças)
+-- Período: monthly, quarterly, semiannual, yearly, lifetime
 -- ---------------------------------------------
 CREATE TABLE IF NOT EXISTS `licenses` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -103,8 +66,7 @@ CREATE TABLE IF NOT EXISTS `licenses` (
     `client_email` VARCHAR(255) NOT NULL,
     `client_document` VARCHAR(20) NULL,
     `site_url` VARCHAR(255) NULL,
-    `plan_id` INT UNSIGNED NULL,
-    `type` ENUM('paid', 'lifetime', 'friend', 'trial') NOT NULL DEFAULT 'paid',
+    `period` ENUM('monthly', 'quarterly', 'semiannual', 'yearly', 'lifetime') NOT NULL DEFAULT 'monthly',
     `status` ENUM('pending', 'active', 'expired', 'cancelled') NOT NULL DEFAULT 'pending',
     `expires_at` DATETIME NULL,
     `activated_at` DATETIME NULL,
@@ -115,9 +77,9 @@ CREATE TABLE IF NOT EXISTS `licenses` (
     `updated_at` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_license_key` (`license_key`),
     INDEX `idx_email` (`client_email`),
+    INDEX `idx_site` (`site_url`),
     INDEX `idx_status` (`status`),
-    INDEX `idx_type` (`type`),
-    FOREIGN KEY (`plan_id`) REFERENCES `plans`(`id`) ON DELETE SET NULL
+    INDEX `idx_period` (`period`)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------
@@ -127,13 +89,17 @@ CREATE TABLE IF NOT EXISTS `payments` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `license_id` INT UNSIGNED NULL,
     `asaas_id` VARCHAR(100) NULL,
+    `asaas_customer_id` VARCHAR(100) NULL,
     `amount` DECIMAL(10, 2) NOT NULL,
+    `period` VARCHAR(20) NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
     `payment_method` VARCHAR(20) NULL,
     `due_date` DATE NULL,
     `paid_at` DATETIME NULL,
     `pix_code` TEXT NULL,
+    `pix_qrcode` TEXT NULL,
     `boleto_url` VARCHAR(500) NULL,
+    `invoice_url` VARCHAR(500) NULL,
     `raw_data` JSON NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -149,6 +115,10 @@ CREATE TABLE IF NOT EXISTS `payments` (
 CREATE TABLE IF NOT EXISTS `activity_logs` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `type` VARCHAR(30) NOT NULL,
+    `action` VARCHAR(50) NULL,
+    `entity_type` VARCHAR(30) NULL,
+    `entity_id` INT UNSIGNED NULL,
+    `user_id` INT UNSIGNED NULL,
     `message` VARCHAR(255) NOT NULL,
     `data` JSON NULL,
     `license_id` INT UNSIGNED NULL,
@@ -156,16 +126,8 @@ CREATE TABLE IF NOT EXISTS `activity_logs` (
     `user_agent` VARCHAR(500) NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX `idx_type` (`type`),
+    INDEX `idx_action` (`action`),
+    INDEX `idx_entity` (`entity_type`),
     INDEX `idx_license` (`license_id`),
     INDEX `idx_created` (`created_at`)
 ) ENGINE=InnoDB;
-
--- ---------------------------------------------
--- Dados de exemplo
--- ---------------------------------------------
-
--- Plano exemplo
-INSERT INTO `plans` (`name`, `slug`, `description`, `price`, `period`, `features`, `is_featured`) VALUES
-('Starter', 'starter', 'Perfeito para começar', 49.90, 'monthly', 'Suporte por email\n1 site\nAtualizações automáticas', 0),
-('Professional', 'professional', 'Para profissionais', 99.90, 'monthly', 'Suporte prioritário\n5 sites\nAtualizações automáticas\nAcesso antecipado', 1),
-('Business', 'business', 'Para agências', 199.90, 'monthly', 'Suporte VIP\nSites ilimitados\nAtualizações automáticas\nAcesso antecipado\nLicença white-label', 0);

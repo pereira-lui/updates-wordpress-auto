@@ -8,7 +8,7 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-4">
-                    Crie uma licença de cortesia vitalícia para um amigo. Esta licença nunca expira e dá acesso completo a todos os plugins.
+                    Crie uma licença de cortesia vitalícia para um amigo. Esta licença nunca expira e dá acesso a todos os plugins.
                 </p>
                 
                 <form method="POST" action="<?= url('/admin/licenses/friend') ?>">
@@ -30,16 +30,6 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Plano (opcional)</label>
-                        <select name="plan_id" class="form-select">
-                            <option value="">Todos os plugins</option>
-                            <?php foreach ($plans as $plan): ?>
-                                <option value="<?= $plan->id ?>"><?= htmlspecialchars($plan->name) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
                         <label class="form-label">Observação</label>
                         <textarea name="notes" class="form-control" rows="2" placeholder="Ex: Amigo de infância, parceiro..."></textarea>
                     </div>
@@ -48,7 +38,7 @@
                     
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-pink">
-                            <i class="bi bi-heart"></i> Criar Licença
+                            <i class="bi bi-heart"></i> Criar Licença Vitalícia
                         </button>
                         <a href="<?= url('/admin/licenses') ?>" class="btn btn-secondary">Cancelar</a>
                     </div>

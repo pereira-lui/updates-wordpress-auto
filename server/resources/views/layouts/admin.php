@@ -167,18 +167,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= str_contains($_SERVER['REQUEST_URI'], '/licenses') ? 'active' : '' ?>" href="<?= url('/admin/licenses') ?>">
-                        <i class="bi bi-key"></i> Licenças
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link <?= str_contains($_SERVER['REQUEST_URI'], '/plugins') ? 'active' : '' ?>" href="<?= url('/admin/plugins') ?>">
                         <i class="bi bi-puzzle"></i> Plugins
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= str_contains($_SERVER['REQUEST_URI'], '/plans') ? 'active' : '' ?>" href="<?= url('/admin/plans') ?>">
-                        <i class="bi bi-tags"></i> Planos
+                    <a class="nav-link <?= str_contains($_SERVER['REQUEST_URI'], '/licenses') ? 'active' : '' ?>" href="<?= url('/admin/licenses') ?>">
+                        <i class="bi bi-key"></i> Licenças
                     </a>
                 </li>
                 <li class="nav-item">

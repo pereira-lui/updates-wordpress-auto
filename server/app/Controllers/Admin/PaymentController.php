@@ -79,6 +79,14 @@ class PaymentController extends Controller {
         
         $payments = Payment::all($filters);
         
+        $periodLabels = [
+            'monthly' => 'Mensal',
+            'quarterly' => 'Trimestral',
+            'semiannual' => 'Semestral',
+            'yearly' => 'Anual',
+            'lifetime' => 'Vitalício'
+        ];
+        
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=pagamentos-' . date('Y-m-d') . '.csv');
         
@@ -89,7 +97,7 @@ class PaymentController extends Controller {
         
         // Cabeçalho
         fputcsv($output, [
-            'ID', 'Data', 'Cliente', 'Email', 'Plano', 'Valor', 
+            'ID', 'Data', 'Cliente', 'Email', 'Período', 'Valor', 
             'Método', 'Status', 'ID Asaas'
         ], ';');
         
@@ -99,7 +107,7 @@ class PaymentController extends Controller {
                 date('d/m/Y H:i', strtotime($payment->created_at)),
                 $payment->client_name ?? '-',
                 $payment->client_email ?? '-',
-                $payment->plan_name ?? '-',
+                $periodLabels[$payment->period] ?? $payment->period ?? '-',
                 number_format($payment->amount, 2, ',', '.'),
                 $payment->payment_method,
                 $payment->status,

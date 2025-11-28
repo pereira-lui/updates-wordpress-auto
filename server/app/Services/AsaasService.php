@@ -168,32 +168,4 @@ class AsaasService {
         
         return $decoded;
     }
-    
-    /**
-     * Cria cobrança para uma licença
-     */
-    public function createPaymentForLicense($license, $plan, $billingType = 'PIX') {
-        // Cria ou busca cliente
-        $customer = $this->createCustomer([
-            'name' => $license->client_name,
-            'email' => $license->client_email,
-            'cpfCnpj' => $license->client_document ?? null
-        ]);
-        
-        if (isset($customer['error'])) {
-            return $customer;
-        }
-        
-        // Cria cobrança
-        $payment = $this->createPayment([
-            'customer' => $customer['id'],
-            'billingType' => $billingType,
-            'value' => $plan->price,
-            'dueDate' => date('Y-m-d', strtotime('+3 days')),
-            'description' => 'Licença ' . $plan->name,
-            'externalReference' => (string) $license->id
-        ]);
-        
-        return $payment;
-    }
 }

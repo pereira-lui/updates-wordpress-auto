@@ -21,11 +21,9 @@ class Payment {
     const METHOD_CREDIT_CARD = 'credit_card';
     
     public static function all($filters = []) {
-        $sql = "SELECT p.*, l.client_name, l.client_email, l.license_key,
-                       pl.name as plan_name
+        $sql = "SELECT p.*, l.client_name, l.client_email, l.license_key, l.period
                 FROM payments p
                 LEFT JOIN licenses l ON p.license_id = l.id
-                LEFT JOIN plans pl ON l.plan_id = pl.id
                 WHERE 1=1";
         $params = [];
         
@@ -62,11 +60,9 @@ class Payment {
     
     public static function find($id) {
         return Database::selectOne(
-            "SELECT p.*, l.client_name, l.client_email, l.license_key,
-                    pl.name as plan_name
+            "SELECT p.*, l.client_name, l.client_email, l.license_key, l.period
              FROM payments p
              LEFT JOIN licenses l ON p.license_id = l.id
-             LEFT JOIN plans pl ON l.plan_id = pl.id
              WHERE p.id = ?",
             [$id]
         );

@@ -34,8 +34,8 @@
         <div class="card stat-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="stat-value"><?= $stats['plans']['total'] ?></div>
-                    <div class="stat-label">Planos</div>
+                    <div class="stat-value"><?= $stats['licenses']['total'] ?></div>
+                    <div class="stat-label">Total Licenças</div>
                 </div>
                 <div class="stat-icon bg-info bg-opacity-10 text-info">
                     <i class="bi bi-tags"></i>

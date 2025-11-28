@@ -19,7 +19,7 @@
     </div>
     
     <div class="col-lg-9">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">Configurações Gerais</div>
             <div class="card-body">
                 <form method="POST" action="<?= url('/admin/settings') ?>">
@@ -43,11 +43,35 @@
                     
                     <hr>
                     
-                    <h5 class="mb-3">Asaas (Pagamentos)</h5>
+                    <h5 class="mb-3"><i class="bi bi-calendar-check"></i> Preços das Assinaturas</h5>
+                    <p class="text-muted small">Defina os valores para cada período de assinatura que os clientes podem contratar.</p>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Mensal (R$)</label>
+                            <input type="number" step="0.01" name="price_monthly" class="form-control" value="<?= htmlspecialchars($settings['price_monthly'] ?? '29.90') ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Trimestral (R$)</label>
+                            <input type="number" step="0.01" name="price_quarterly" class="form-control" value="<?= htmlspecialchars($settings['price_quarterly'] ?? '79.90') ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Semestral (R$)</label>
+                            <input type="number" step="0.01" name="price_semiannual" class="form-control" value="<?= htmlspecialchars($settings['price_semiannual'] ?? '149.90') ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Anual (R$)</label>
+                            <input type="number" step="0.01" name="price_yearly" class="form-control" value="<?= htmlspecialchars($settings['price_yearly'] ?? '249.90') ?>">
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3"><i class="bi bi-credit-card"></i> Asaas (Pagamentos)</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-12">
                             <label class="form-label">API Key</label>
-                            <input type="password" name="asaas_api_key" class="form-control" value="<?= htmlspecialchars($settings['asaas_api_key'] ?? '') ?>">
+                            <input type="password" name="asaas_api_key" class="form-control" value="<?= htmlspecialchars($settings['asaas_api_key'] ?? '') ?>" placeholder="$aact_...">
+                            <small class="text-muted">Pegue sua API Key em: Asaas → Minha Conta → Integrações → API</small>
                         </div>
                         <div class="col-12">
                             <div class="form-check">
@@ -59,7 +83,7 @@
                     
                     <hr>
                     
-                    <h5 class="mb-3">E-mail (SMTP)</h5>
+                    <h5 class="mb-3"><i class="bi bi-envelope"></i> E-mail (SMTP) - Opcional</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-md-8">
                             <label class="form-label">Host SMTP</label>

@@ -5,7 +5,6 @@ namespace App\Controllers\Api;
 use App\Core\Controller;
 use App\Models\License;
 use App\Models\Plugin;
-use App\Models\Plan;
 use App\Models\ActivityLog;
 
 /**
@@ -61,15 +60,16 @@ class UpdateController extends Controller {
         }
         
         $license = $validation['license'];
+        $periodLabels = License::getPeriodLabels();
         
         return $this->json([
             'success' => true,
             'message' => 'Licença válida',
             'license' => [
                 'status' => $license->status,
-                'type' => $license->type,
-                'expires_at' => $license->expires_at,
-                'plan' => $license->plan_id ? (Plan::find($license->plan_id)->name ?? null) : null
+                'period' => $license->period,
+                'period_label' => $periodLabels[$license->period] ?? $license->period,
+                'expires_at' => $license->expires_at
             ]
         ]);
     }
@@ -106,18 +106,13 @@ class UpdateController extends Controller {
         // Log de verificação
         ActivityLog::licenseCheck($license->id, $siteUrl, true);
         
-        // Obtém plugins do plano da licença
-        if ($license->plan_id) {
-            $planPlugins = Plan::getPlugins($license->plan_id);
-        } else {
-            // Licença sem plano = todos os plugins ativos
-            $planPlugins = Plugin::all(true);
-        }
+        // Licença válida = acesso a todos os plugins ativos
+        $availablePlugins = Plugin::all(true);
         
         $updates = [];
         
         // $plugins vem como array [slug => version] do cliente
-        foreach ($planPlugins as $plugin) {
+        foreach ($availablePlugins as $plugin) {
             $clientVersion = null;
             
             // Verifica se o cliente tem este plugin e qual versão
@@ -152,7 +147,7 @@ class UpdateController extends Controller {
             'updates' => $updates,
             'license' => [
                 'status' => $license->status,
-                'type' => $license->type,
+                'period' => $license->period,
                 'expires_at' => $license->expires_at
             ]
         ]);
@@ -185,7 +180,7 @@ class UpdateController extends Controller {
         
         $license = $validation['license'];
         
-        // Verifica se o plugin está disponível para o plano
+        // Verifica se o plugin está disponível
         $plugin = Plugin::findBySlug($slug);
         
         if (!$plugin || !$plugin->is_active) {
@@ -193,26 +188,6 @@ class UpdateController extends Controller {
                 'success' => false,
                 'message' => 'Plugin não encontrado'
             ], 404);
-        }
-        
-        // Verifica se o plano da licença inclui este plugin
-        if ($license->plan_id) {
-            $planPlugins = Plan::getPlugins($license->plan_id);
-            $hasAccess = false;
-            
-            foreach ($planPlugins as $p) {
-                if ($p->slug === $slug) {
-                    $hasAccess = true;
-                    break;
-                }
-            }
-            
-            if (!$hasAccess) {
-                return $this->json([
-                    'success' => false,
-                    'message' => 'Seu plano não inclui este plugin'
-                ], 403);
-            }
         }
         
         // Obtém caminho do arquivo
@@ -264,13 +239,15 @@ class UpdateController extends Controller {
             ], 404);
         }
         
+        $periodLabels = License::getPeriodLabels();
+        
         return $this->json([
             'success' => true,
             'license' => [
                 'status' => $license->status,
-                'type' => $license->type,
-                'expires_at' => $license->expires_at,
-                'plan' => $license->plan_id ? Plan::find($license->plan_id)->name ?? null : null
+                'period' => $license->period,
+                'period_label' => $periodLabels[$license->period] ?? $license->period,
+                'expires_at' => $license->expires_at
             ]
         ]);
     }
@@ -377,14 +354,8 @@ class UpdateController extends Controller {
             ], 403);
         }
         
-        $license = $validation['license'];
-        
-        // Obtém plugins do plano da licença
-        if ($license->plan_id) {
-            $plugins = Plan::getPlugins($license->plan_id);
-        } else {
-            $plugins = Plugin::all(true);
-        }
+        // Licença válida = acesso a todos os plugins ativos
+        $plugins = Plugin::all(true);
         
         $result = [];
         foreach ($plugins as $plugin) {

@@ -1,5 +1,12 @@
 <?php $this->layout('layouts/admin', ['title' => 'Pagamentos']); ?>
 
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Pagamentos</h4>
+    <a href="<?= url('/admin/payments/report') ?>" class="btn btn-outline-primary">
+        <i class="bi bi-graph-up"></i> Ver Relatório
+    </a>
+</div>
+
 <!-- Stats -->
 <div class="row g-4 mb-4">
     <?php 
@@ -93,7 +100,7 @@
                     <tr>
                         <th>Data</th>
                         <th>Cliente</th>
-                        <th>Plano</th>
+                        <th>Período</th>
                         <th>Valor</th>
                         <th>Método</th>
                         <th>Status</th>
@@ -109,6 +116,15 @@
                             </td>
                         </tr>
                     <?php else: ?>
+                        <?php 
+                        $periodLabels = [
+                            'monthly' => 'Mensal',
+                            'quarterly' => 'Trimestral',
+                            'semiannual' => 'Semestral',
+                            'yearly' => 'Anual',
+                            'lifetime' => 'Vitalício'
+                        ];
+                        ?>
                         <?php foreach ($payments as $payment): ?>
                             <tr>
                                 <td>
@@ -119,7 +135,7 @@
                                     <div><?= htmlspecialchars($payment->client_name ?? '-') ?></div>
                                     <small class="text-muted"><?= htmlspecialchars($payment->client_email ?? '') ?></small>
                                 </td>
-                                <td><?= htmlspecialchars($payment->plan_name ?? '-') ?></td>
+                                <td><?= $periodLabels[$payment->period] ?? $payment->period ?? '-' ?></td>
                                 <td class="fw-bold">R$ <?= number_format($payment->amount, 2, ',', '.') ?></td>
                                 <td>
                                     <?php

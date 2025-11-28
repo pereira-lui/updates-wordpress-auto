@@ -2,9 +2,6 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex gap-2">
-        <a href="<?= url('/admin/licenses/create') ?>" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i> Nova Licença
-        </a>
         <a href="<?= url('/admin/licenses/friend') ?>" class="btn btn-outline-pink">
             <i class="bi bi-heart"></i> Licença para Amigo
         </a>
@@ -25,12 +22,13 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select name="type" class="form-select">
-                    <option value="">Todos os tipos</option>
-                    <option value="paid" <?= ($filters['type'] ?? '') === 'paid' ? 'selected' : '' ?>>Paga</option>
-                    <option value="lifetime" <?= ($filters['type'] ?? '') === 'lifetime' ? 'selected' : '' ?>>Vitalícia</option>
-                    <option value="friend" <?= ($filters['type'] ?? '') === 'friend' ? 'selected' : '' ?>>Amigo</option>
-                    <option value="trial" <?= ($filters['type'] ?? '') === 'trial' ? 'selected' : '' ?>>Trial</option>
+                <select name="period" class="form-select">
+                    <option value="">Todos os períodos</option>
+                    <option value="monthly" <?= ($filters['period'] ?? '') === 'monthly' ? 'selected' : '' ?>>Mensal</option>
+                    <option value="quarterly" <?= ($filters['period'] ?? '') === 'quarterly' ? 'selected' : '' ?>>Trimestral</option>
+                    <option value="semiannual" <?= ($filters['period'] ?? '') === 'semiannual' ? 'selected' : '' ?>>Semestral</option>
+                    <option value="yearly" <?= ($filters['period'] ?? '') === 'yearly' ? 'selected' : '' ?>>Anual</option>
+                    <option value="lifetime" <?= ($filters['period'] ?? '') === 'lifetime' ? 'selected' : '' ?>>Vitalícia</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -52,21 +50,21 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Cliente</th>
+                        <th>Cliente / Site</th>
                         <th>Chave</th>
-                        <th>Plano</th>
-                        <th>Tipo</th>
+                        <th>Período</th>
                         <th>Status</th>
                         <th>Expira em</th>
-                        <th width="150">Ações</th>
+                        <th width="120">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($licenses)): ?>
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
+                            <td colspan="6" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 Nenhuma licença encontrada
+                                <p class="small mt-2">As licenças são criadas automaticamente quando os clientes pagam pelo plugin.</p>
                             </td>
                         </tr>
                     <?php else: ?>
@@ -76,7 +74,7 @@
                                     <div class="fw-medium"><?= htmlspecialchars($license->client_name) ?></div>
                                     <small class="text-muted"><?= htmlspecialchars($license->client_email) ?></small>
                                     <?php if ($license->site_url): ?>
-                                        <br><small class="text-info"><?= htmlspecialchars($license->site_url) ?></small>
+                                        <br><small class="text-info"><i class="bi bi-globe"></i> <?= htmlspecialchars($license->site_url) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -85,10 +83,18 @@
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </td>
-                                <td><?= htmlspecialchars($license->plan_name ?? '-') ?></td>
                                 <td>
-                                    <span class="badge badge-<?= $license->type ?>">
-                                        <?= ucfirst($license->type) ?>
+                                    <?php
+                                    $periodLabels = [
+                                        'monthly' => 'Mensal',
+                                        'quarterly' => 'Trimestral',
+                                        'semiannual' => 'Semestral',
+                                        'yearly' => 'Anual',
+                                        'lifetime' => 'Vitalícia'
+                                    ];
+                                    ?>
+                                    <span class="badge bg-<?= $license->period === 'lifetime' ? 'purple' : 'info' ?>">
+                                        <?= $periodLabels[$license->period] ?? $license->period ?>
                                     </span>
                                 </td>
                                 <td>
@@ -98,18 +104,24 @@
                                 </td>
                                 <td>
                                     <?php if ($license->expires_at): ?>
-                                        <?= date('d/m/Y', strtotime($license->expires_at)) ?>
+                                        <?php 
+                                        $expires = strtotime($license->expires_at);
+                                        $daysLeft = ceil(($expires - time()) / 86400);
+                                        ?>
+                                        <span class="<?= $daysLeft <= 7 ? 'text-danger' : ($daysLeft <= 30 ? 'text-warning' : '') ?>">
+                                            <?= date('d/m/Y', $expires) ?>
+                                            <?php if ($daysLeft > 0 && $daysLeft <= 30): ?>
+                                                <small>(<?= $daysLeft ?> dias)</small>
+                                            <?php endif; ?>
+                                        </span>
                                     <?php else: ?>
-                                        <span class="text-success">Vitalícia</span>
+                                        <span class="text-success"><i class="bi bi-infinity"></i> Vitalícia</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="<?= url('/admin/licenses/' . $license->id) ?>" class="btn btn-outline-secondary" title="Ver">
                                             <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a href="<?= url('/admin/licenses/' . $license->id . '/edit') ?>" class="btn btn-outline-secondary" title="Editar">
-                                            <i class="bi bi-pencil"></i>
                                         </a>
                                         <button type="button" class="btn btn-outline-secondary toggle-status" data-id="<?= $license->id ?>" data-status="<?= $license->status ?>" title="<?= $license->status === 'active' ? 'Desativar' : 'Ativar' ?>">
                                             <i class="bi bi-<?= $license->status === 'active' ? 'pause' : 'play' ?>"></i>
@@ -134,6 +146,7 @@
     background: #ec4899;
     color: white;
 }
+.bg-purple { background: #8b5cf6; }
 </style>
 
 <?php $this->section('scripts'); ?>
@@ -155,7 +168,8 @@ document.querySelectorAll('.toggle-status').forEach(btn => {
         const id = btn.dataset.id;
         const res = await fetch(`<?= url('/admin/licenses') ?>/${id}/toggle`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: '_token=<?= csrf_token() ?>'
         });
         const data = await res.json();
         if (data.success) {

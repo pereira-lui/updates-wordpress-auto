@@ -4,175 +4,325 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\License;
-use App\Models\Plan;
 use App\Models\Payment;
+use App\Core\Database;
 use App\Services\AsaasService;
 
 /**
- * Controller do Checkout Público
+ * Controller do Checkout Público (usado pelo plugin WordPress cliente)
  */
 class CheckoutController extends Controller {
     
     /**
-     * Página de planos
+     * Página informativa (landing page simples)
      */
-    public function plans() {
-        $plans = Plan::all(true);
+    public function index() {
+        // Pega preços das configurações
+        $prices = $this->getPrices();
         
-        return $this->view('public/plans', [
-            'plans' => $plans
+        return $this->view('public/index', [
+            'prices' => $prices
         ]);
     }
     
     /**
-     * Formulário de checkout
+     * Obtém preços das configurações
      */
-    public function show($planSlug) {
-        $plan = Plan::findBySlug($planSlug);
+    private function getPrices() {
+        $settings = Database::selectOne("SELECT value FROM settings WHERE `key` = 'general'");
+        $data = $settings ? json_decode($settings->value, true) : [];
         
-        if (!$plan || !$plan->is_active) {
-            flash('error', 'Plano não encontrado');
-            redirect('/plans');
+        return [
+            'monthly' => floatval($data['price_monthly'] ?? 29),
+            'quarterly' => floatval($data['price_quarterly'] ?? 79),
+            'semiannual' => floatval($data['price_semiannual'] ?? 149),
+            'yearly' => floatval($data['price_yearly'] ?? 249)
+        ];
+    }
+    
+    /**
+     * API: Obtém preços disponíveis (para o plugin WP)
+     * GET /api/v1/subscription/prices
+     */
+    public function getPricesApi() {
+        $prices = $this->getPrices();
+        
+        $periodLabels = License::getPeriodLabels();
+        
+        $result = [];
+        foreach ($prices as $period => $price) {
+            $result[$period] = [
+                'price' => $price,
+                'label' => $periodLabels[$period] ?? $period,
+                'days' => License::getPeriodDays($period)
+            ];
         }
         
-        return $this->view('public/checkout', [
-            'plan' => $plan
+        return $this->json([
+            'success' => true,
+            'prices' => $result
         ]);
     }
     
     /**
-     * Processa o checkout
+     * API: Inicia assinatura (cria licença + cobrança)
+     * POST /api/v1/subscription/create
      */
-    public function process($planSlug) {
-        $plan = Plan::findBySlug($planSlug);
+    public function createSubscription() {
+        $input = $this->getJsonInput();
         
-        if (!$plan || !$plan->is_active) {
-            flash('error', 'Plano não encontrado');
-            redirect('/plans');
+        $name = $input['name'] ?? '';
+        $email = $input['email'] ?? '';
+        $document = $input['document'] ?? '';
+        $siteUrl = $input['site_url'] ?? '';
+        $period = $input['period'] ?? 'monthly';
+        $paymentMethod = $input['payment_method'] ?? 'pix';
+        
+        // Validação
+        if (empty($name) || empty($email)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Nome e email são obrigatórios'
+            ], 400);
         }
         
-        $errors = $this->validate([
-            'name' => 'required',
-            'email' => 'required|email',
-            'payment_method' => 'required'
+        if (!in_array($period, ['monthly', 'quarterly', 'semiannual', 'yearly'])) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Período inválido'
+            ], 400);
+        }
+        
+        // Obtém preço
+        $prices = $this->getPrices();
+        $price = $prices[$period] ?? 29;
+        
+        // Cria cobrança no Asaas primeiro para garantir que funcione
+        $asaas = new AsaasService();
+        
+        // Cria ou busca cliente
+        $customer = $asaas->createCustomer([
+            'name' => $name,
+            'email' => $email,
+            'cpfCnpj' => preg_replace('/[^0-9]/', '', $document)
         ]);
         
-        if (!empty($errors)) {
-            flash('error', 'Preencha todos os campos corretamente');
-            redirect('/checkout/' . $planSlug);
+        if (isset($customer['error'])) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Erro ao criar cliente: ' . ($customer['message'] ?? 'Erro desconhecido')
+            ], 500);
         }
+        
+        $periodLabels = License::getPeriodLabels();
+        $description = 'Assinatura ' . ($periodLabels[$period] ?? $period) . ' - Luia Updates';
+        
+        $billingType = strtoupper($paymentMethod);
         
         // Cria licença pendente
         $licenseId = License::create([
-            'client_name' => $_POST['name'],
-            'client_email' => $_POST['email'],
-            'client_document' => $_POST['document'] ?? null,
-            'site_url' => $_POST['site_url'] ?? null,
-            'type' => License::TYPE_PAID,
-            'plan_id' => $plan->id,
+            'client_name' => $name,
+            'client_email' => $email,
+            'client_document' => $document,
+            'site_url' => $siteUrl,
+            'period' => $period,
             'status' => License::STATUS_PENDING
         ]);
         
         $license = License::find($licenseId);
         
-        // Cria cobrança no Asaas
-        $asaas = new AsaasService();
+        // Cria cobrança
+        $payment = $asaas->createPayment([
+            'customer' => $customer['id'],
+            'billingType' => $billingType,
+            'value' => $price,
+            'description' => $description,
+            'externalReference' => (string) $licenseId,
+            'dueDate' => date('Y-m-d', strtotime('+3 days'))
+        ]);
         
-        $billingType = strtoupper($_POST['payment_method']);
-        $payment = $asaas->createPaymentForLicense($license, $plan, $billingType);
-        
-        if (isset($payment['error'])) {
-            flash('error', 'Erro ao criar cobrança: ' . ($payment['message'] ?? 'Erro desconhecido'));
-            redirect('/checkout/' . $planSlug);
+        if (isset($payment['error']) || !isset($payment['id'])) {
+            // Remove licença criada se falhar
+            License::delete($licenseId);
+            
+            return $this->json([
+                'success' => false,
+                'message' => 'Erro ao criar cobrança: ' . ($payment['message'] ?? 'Erro desconhecido')
+            ], 500);
         }
         
         // Salva pagamento
         Payment::create([
             'license_id' => $licenseId,
             'asaas_id' => $payment['id'],
-            'amount' => $plan->price,
+            'amount' => $price,
             'status' => 'pending',
-            'payment_method' => $_POST['payment_method'],
+            'payment_method' => $paymentMethod,
             'due_date' => $payment['dueDate'],
             'pix_code' => null,
             'boleto_url' => $payment['bankSlipUrl'] ?? null,
             'raw_data' => json_encode($payment)
         ]);
         
-        // Redireciona para página de pagamento
-        redirect('/checkout/payment/' . $licenseId);
-    }
-    
-    /**
-     * Página de pagamento
-     */
-    public function payment($licenseId) {
-        $license = License::find($licenseId);
-        
-        if (!$license) {
-            flash('error', 'Licença não encontrada');
-            redirect('/plans');
-        }
-        
-        // Busca pagamento
-        $payments = Payment::all(['license_id' => $licenseId]);
-        $payment = $payments[0] ?? null;
-        
-        if (!$payment) {
-            flash('error', 'Pagamento não encontrado');
-            redirect('/plans');
-        }
-        
         // Se for PIX, busca QR Code
-        $pixQrCode = null;
-        if ($payment->payment_method === 'pix' && $payment->asaas_id) {
-            $asaas = new AsaasService();
-            $pixData = $asaas->getPixQrCode($payment->asaas_id);
-            $pixQrCode = $pixData ?? null;
-        }
-        
-        $plan = Plan::find($license->plan_id);
-        
-        return $this->view('public/payment', [
-            'license' => $license,
-            'payment' => $payment,
-            'plan' => $plan,
-            'pixQrCode' => $pixQrCode
-        ]);
-    }
-    
-    /**
-     * Verifica status do pagamento (AJAX)
-     */
-    public function checkStatus($licenseId) {
-        $license = License::find($licenseId);
-        
-        if (!$license) {
-            return $this->json(['error' => 'Licença não encontrada'], 404);
+        $pixData = null;
+        if ($paymentMethod === 'pix') {
+            $pixData = $asaas->getPixQrCode($payment['id']);
         }
         
         return $this->json([
-            'status' => $license->status,
-            'license_key' => $license->status === 'active' ? $license->license_key : null
+            'success' => true,
+            'license_id' => $licenseId,
+            'payment_id' => $payment['id'],
+            'payment_url' => $payment['invoiceUrl'] ?? null,
+            'boleto_url' => $payment['bankSlipUrl'] ?? null,
+            'pix' => $pixData ? [
+                'qrcode' => $pixData['encodedImage'] ?? null,
+                'payload' => $pixData['payload'] ?? null,
+                'expiration' => $pixData['expirationDate'] ?? null
+            ] : null
         ]);
     }
     
     /**
-     * Página de sucesso
+     * API: Renova assinatura
+     * POST /api/v1/subscription/renew
      */
-    public function success($licenseId) {
-        $license = License::find($licenseId);
+    public function renewSubscription() {
+        $input = $this->getJsonInput();
         
-        if (!$license || $license->status !== 'active') {
-            flash('error', 'Licença não encontrada ou não ativada');
-            redirect('/plans');
+        $licenseKey = $input['license_key'] ?? '';
+        $period = $input['period'] ?? null;
+        $paymentMethod = $input['payment_method'] ?? 'pix';
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
         }
         
-        $plan = Plan::find($license->plan_id);
+        $license = License::findByKey($licenseKey);
         
-        return $this->view('public/success', [
-            'license' => $license,
-            'plan' => $plan
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Usa o período atual se não especificado
+        if (!$period) {
+            $period = $license->period ?? 'monthly';
+        }
+        
+        // Obtém preço
+        $prices = $this->getPrices();
+        $price = $prices[$period] ?? 29;
+        
+        // Cria cobrança no Asaas
+        $asaas = new AsaasService();
+        
+        // Cria ou busca cliente
+        $customer = $asaas->createCustomer([
+            'name' => $license->client_name,
+            'email' => $license->client_email,
+            'cpfCnpj' => preg_replace('/[^0-9]/', '', $license->client_document ?? '')
         ]);
+        
+        if (isset($customer['error'])) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Erro ao criar cliente: ' . ($customer['message'] ?? 'Erro desconhecido')
+            ], 500);
+        }
+        
+        $periodLabels = License::getPeriodLabels();
+        $description = 'Renovação ' . ($periodLabels[$period] ?? $period) . ' - Luia Updates';
+        
+        $billingType = strtoupper($paymentMethod);
+        $payment = $asaas->createPayment([
+            'customer' => $customer['id'],
+            'billingType' => $billingType,
+            'value' => $price,
+            'description' => $description,
+            'externalReference' => (string) $license->id,
+            'dueDate' => date('Y-m-d', strtotime('+3 days'))
+        ]);
+        
+        if (isset($payment['error']) || !isset($payment['id'])) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Erro ao criar cobrança: ' . ($payment['message'] ?? 'Erro desconhecido')
+            ], 500);
+        }
+        
+        // Atualiza período da licença se diferente
+        if ($period !== $license->period) {
+            License::update($license->id, ['period' => $period]);
+        }
+        
+        // Salva pagamento
+        Payment::create([
+            'license_id' => $license->id,
+            'asaas_id' => $payment['id'],
+            'amount' => $price,
+            'status' => 'pending',
+            'payment_method' => $paymentMethod,
+            'due_date' => $payment['dueDate'],
+            'pix_code' => null,
+            'boleto_url' => $payment['bankSlipUrl'] ?? null,
+            'raw_data' => json_encode($payment)
+        ]);
+        
+        // Se for PIX, busca QR Code
+        $pixData = null;
+        if ($paymentMethod === 'pix') {
+            $pixData = $asaas->getPixQrCode($payment['id']);
+        }
+        
+        return $this->json([
+            'success' => true,
+            'payment_id' => $payment['id'],
+            'payment_url' => $payment['invoiceUrl'] ?? null,
+            'boleto_url' => $payment['bankSlipUrl'] ?? null,
+            'pix' => $pixData ? [
+                'qrcode' => $pixData['encodedImage'] ?? null,
+                'payload' => $pixData['payload'] ?? null,
+                'expiration' => $pixData['expirationDate'] ?? null
+            ] : null
+        ]);
+    }
+    
+    /**
+     * API: Verifica status de pagamento
+     * GET /api/v1/subscription/status/{payment_id}
+     */
+    public function checkPaymentStatus($paymentId) {
+        $payment = Payment::findByAsaasId($paymentId);
+        
+        if (!$payment) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Pagamento não encontrado'
+            ], 404);
+        }
+        
+        $license = License::find($payment->license_id);
+        
+        return $this->json([
+            'success' => true,
+            'status' => $payment->status,
+            'license_status' => $license ? $license->status : null,
+            'license_key' => ($license && $license->status === 'active') ? $license->license_key : null
+        ]);
+    }
+    
+    /**
+     * Obtém dados JSON do body
+     */
+    private function getJsonInput() {
+        $rawBody = file_get_contents('php://input');
+        return json_decode($rawBody, true) ?? [];
     }
 }
