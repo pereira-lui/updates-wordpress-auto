@@ -14,13 +14,74 @@ use App\Models\ActivityLog;
 class UpdateController extends Controller {
     
     /**
+     * Obtém dados do request (JSON ou POST)
+     */
+    private function getInput($key = null, $default = null) {
+        static $jsonData = null;
+        
+        // Tenta ler JSON do body
+        if ($jsonData === null) {
+            $rawBody = file_get_contents('php://input');
+            $jsonData = json_decode($rawBody, true) ?? [];
+        }
+        
+        // Mescla com POST e GET
+        $data = array_merge($_GET, $_POST, $jsonData);
+        
+        if ($key === null) {
+            return $data;
+        }
+        
+        return $data[$key] ?? $default;
+    }
+    
+    /**
+     * Valida licença
+     * POST /api/v1/validate-license
+     */
+    public function validateLicense() {
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        // Valida licença
+        $validation = License::validate($licenseKey, $siteUrl);
+        
+        if (!$validation['valid']) {
+            return $this->json([
+                'success' => false,
+                'message' => $validation['message']
+            ], 403);
+        }
+        
+        $license = $validation['license'];
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Licença válida',
+            'license' => [
+                'status' => $license->status,
+                'type' => $license->type,
+                'expires_at' => $license->expires_at,
+                'plan' => $license->plan_id ? (Plan::find($license->plan_id)->name ?? null) : null
+            ]
+        ]);
+    }
+    
+    /**
      * Verifica atualizações disponíveis
      * POST /api/v1/check-updates
      */
     public function checkUpdates() {
-        $licenseKey = $_POST['license_key'] ?? $_GET['license_key'] ?? '';
-        $siteUrl = $_POST['site_url'] ?? $_GET['site_url'] ?? '';
-        $plugins = $_POST['plugins'] ?? [];
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
+        $plugins = $this->getInput('plugins', []);
         
         if (empty($licenseKey)) {
             return $this->json([
@@ -46,8 +107,6 @@ class UpdateController extends Controller {
         ActivityLog::licenseCheck($license->id, $siteUrl, true);
         
         // Obtém plugins do plano da licença
-        $availablePlugins = [];
-        
         if ($license->plan_id) {
             $planPlugins = Plan::getPlugins($license->plan_id);
         } else {
@@ -57,51 +116,45 @@ class UpdateController extends Controller {
         
         $updates = [];
         
+        // $plugins vem como array [slug => version] do cliente
         foreach ($planPlugins as $plugin) {
-            $pluginInfo = [
-                'name' => $plugin->name,
-                'slug' => $plugin->slug,
-                'version' => $plugin->version,
-                'new_version' => $plugin->version,
-                'url' => $plugin->plugin_uri,
-                'package' => url('/api/v1/download/' . $plugin->slug . '?license_key=' . $licenseKey),
-                'icons' => [],
-                'banners' => [],
-                'requires' => $plugin->requires_wp,
-                'tested' => $plugin->tested_wp,
-                'requires_php' => $plugin->requires_php,
-                'author' => $plugin->author,
-                'author_uri' => $plugin->author_uri,
-                'sections' => [
-                    'description' => $plugin->description,
-                    'changelog' => $plugin->changelog
-                ]
-            ];
+            $clientVersion = null;
             
-            // Verifica se há atualização disponível
+            // Verifica se o cliente tem este plugin e qual versão
             if (is_array($plugins)) {
-                foreach ($plugins as $clientPlugin) {
-                    if (isset($clientPlugin['slug']) && $clientPlugin['slug'] === $plugin->slug) {
-                        $clientVersion = $clientPlugin['version'] ?? '0.0.0';
-                        if (version_compare($plugin->version, $clientVersion, '>')) {
-                            $pluginInfo['update_available'] = true;
-                        }
+                foreach ($plugins as $slug => $version) {
+                    if ($slug === $plugin->slug) {
+                        $clientVersion = $version;
                         break;
                     }
                 }
             }
             
-            $availablePlugins[$plugin->slug] = $pluginInfo;
+            // Se o cliente tem o plugin e há versão mais nova
+            if ($clientVersion !== null && version_compare($plugin->version, $clientVersion, '>')) {
+                $updates[$plugin->slug] = [
+                    'name' => $plugin->name,
+                    'slug' => $plugin->slug,
+                    'version' => $plugin->version,
+                    'url' => $plugin->plugin_uri,
+                    'package' => url('/api/v1/download/' . $plugin->slug . '?license_key=' . $licenseKey),
+                    'icon_url' => '',
+                    'banner_url' => '',
+                    'requires' => $plugin->requires_wp,
+                    'tested' => $plugin->tested_wp,
+                    'requires_php' => $plugin->requires_php
+                ];
+            }
         }
         
         return $this->json([
             'success' => true,
+            'updates' => $updates,
             'license' => [
                 'status' => $license->status,
                 'type' => $license->type,
                 'expires_at' => $license->expires_at
-            ],
-            'plugins' => $availablePlugins
+            ]
         ]);
     }
     
@@ -110,8 +163,8 @@ class UpdateController extends Controller {
      * GET /api/v1/download/{slug}
      */
     public function download($slug) {
-        $licenseKey = $_GET['license_key'] ?? '';
-        $siteUrl = $_GET['site_url'] ?? '';
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
         
         if (empty($licenseKey)) {
             return $this->json([
@@ -193,7 +246,7 @@ class UpdateController extends Controller {
      * GET /api/v1/license/status
      */
     public function licenseStatus() {
-        $licenseKey = $_GET['license_key'] ?? '';
+        $licenseKey = $this->getInput('license_key');
         
         if (empty($licenseKey)) {
             return $this->json([
@@ -227,8 +280,8 @@ class UpdateController extends Controller {
      * POST /api/v1/license/activate
      */
     public function activateLicense() {
-        $licenseKey = $_POST['license_key'] ?? '';
-        $siteUrl = $_POST['site_url'] ?? '';
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
         
         if (empty($licenseKey) || empty($siteUrl)) {
             return $this->json([
@@ -270,7 +323,7 @@ class UpdateController extends Controller {
      * POST /api/v1/license/deactivate
      */
     public function deactivateLicense() {
-        $licenseKey = $_POST['license_key'] ?? '';
+        $licenseKey = $this->getInput('license_key');
         
         if (empty($licenseKey)) {
             return $this->json([
@@ -296,6 +349,106 @@ class UpdateController extends Controller {
         return $this->json([
             'success' => true,
             'message' => 'Licença desativada'
+        ]);
+    }
+    
+    /**
+     * Lista plugins disponíveis para a licença
+     * POST /api/v1/plugins
+     */
+    public function listPlugins() {
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        // Valida licença
+        $validation = License::validate($licenseKey, $siteUrl);
+        
+        if (!$validation['valid']) {
+            return $this->json([
+                'success' => false,
+                'message' => $validation['message']
+            ], 403);
+        }
+        
+        $license = $validation['license'];
+        
+        // Obtém plugins do plano da licença
+        if ($license->plan_id) {
+            $plugins = Plan::getPlugins($license->plan_id);
+        } else {
+            $plugins = Plugin::all(true);
+        }
+        
+        $result = [];
+        foreach ($plugins as $plugin) {
+            $result[] = [
+                'name' => $plugin->name,
+                'slug' => $plugin->slug,
+                'version' => $plugin->version,
+                'description' => $plugin->description
+            ];
+        }
+        
+        return $this->json([
+            'success' => true,
+            'plugins' => $result
+        ]);
+    }
+    
+    /**
+     * Informações de um plugin específico
+     * POST /api/v1/plugin-info/{slug}
+     */
+    public function pluginInfo($slug) {
+        $licenseKey = $this->getInput('license_key');
+        $siteUrl = $this->getInput('site_url');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        // Valida licença
+        $validation = License::validate($licenseKey, $siteUrl);
+        
+        if (!$validation['valid']) {
+            return $this->json([
+                'success' => false,
+                'message' => $validation['message']
+            ], 403);
+        }
+        
+        $plugin = Plugin::findBySlug($slug);
+        
+        if (!$plugin || !$plugin->is_active) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Plugin não encontrado'
+            ], 404);
+        }
+        
+        return $this->json([
+            'success' => true,
+            'plugin' => [
+                'name' => $plugin->name,
+                'slug' => $plugin->slug,
+                'version' => $plugin->version,
+                'author' => $plugin->author,
+                'description' => $plugin->description,
+                'changelog' => $plugin->changelog,
+                'requires' => $plugin->requires_wp,
+                'tested' => $plugin->tested_wp,
+                'requires_php' => $plugin->requires_php
+            ]
         ]);
     }
 }

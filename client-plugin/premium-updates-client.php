@@ -3,7 +3,7 @@
  * Plugin Name: Premium Updates Client
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
  * Description: Cliente para receber atualizações automáticas de plugins premium do servidor central.
- * Version: 1.0.0
+ * Version: 2.0.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUC_VERSION', '1.0.0');
+define('PUC_VERSION', '2.0.0');
 define('PUC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -160,14 +160,19 @@ class Premium_Updates_Client {
             return new WP_Error('not_configured', __('Plugin não configurado', 'premium-updates-client'));
         }
 
-        $url = trailingslashit($this->server_url) . 'wp-json/premium-updates/v1/' . $endpoint;
+        // Nova API do servidor standalone
+        $url = trailingslashit($this->server_url) . 'api/v1/' . $endpoint;
 
         $data['license_key'] = $this->license_key;
         $data['site_url'] = home_url('/');
 
         $response = wp_remote_post($url, array(
             'timeout' => 30,
-            'body' => $data,
+            'body' => json_encode($data),
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json'
+            ),
             'sslverify' => true
         ));
 
@@ -269,7 +274,8 @@ class Premium_Updates_Client {
      * Gera URL de download
      */
     private function get_download_url($slug) {
-        $url = trailingslashit($this->server_url) . 'wp-json/premium-updates/v1/download/' . $slug;
+        // Nova API do servidor standalone
+        $url = trailingslashit($this->server_url) . 'api/v1/download/' . $slug;
         
         return add_query_arg(array(
             'license_key' => $this->license_key,
