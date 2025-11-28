@@ -152,14 +152,14 @@ function csrf_token() {
  * Campo CSRF para formulários
  */
 function csrf_field() {
-    return '<input type="hidden" name="_csrf_token" value="' . csrf_token() . '">';
+    return '<input type="hidden" name="_token" value="' . csrf_token() . '">';
 }
 
 /**
  * Valida token CSRF
  */
 function csrf_verify() {
-    $token = input('_csrf_token');
+    $token = input('_token');
     return $token && hash_equals(session('_csrf_token', ''), $token);
 }
 
