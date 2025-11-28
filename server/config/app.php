@@ -5,7 +5,7 @@
 
 return [
     'name' => 'Premium Updates Server',
-    'url' => getenv('APP_URL') ?: 'http://localhost:8000',
+    'url' => getenv('APP_URL') ?: 'https://www.luiasystems.com/updates-wordpress-auto',
     'debug' => getenv('APP_DEBUG') ?: true,
     'timezone' => 'America/Sao_Paulo',
     

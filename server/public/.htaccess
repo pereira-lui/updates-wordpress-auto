@@ -1,6 +1,8 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+    
+    # Detecta automaticamente o RewriteBase
+    RewriteBase /updates-wordpress-auto/
     
     # Redireciona para HTTPS (descomente em produção)
     # RewriteCond %{HTTPS} off
@@ -8,7 +10,7 @@
     
     # Remove trailing slash
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)/$ /$1 [L,R=301]
+    RewriteRule ^(.*)/$ $1 [L,R=301]
     
     # Redireciona tudo para index.php
     RewriteCond %{REQUEST_FILENAME} !-f

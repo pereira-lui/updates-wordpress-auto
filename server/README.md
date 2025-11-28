@@ -70,7 +70,7 @@ chmod -R 755 public/
 
 ### 6. Acesse o sistema
 
-Abra o navegador em `http://seu-dominio.com`
+Abra o navegador em `https://www.luiasystems.com/updates-wordpress-auto`
 
 **Credenciais padrão:**
 - Email: admin@admin.com

@@ -52,6 +52,12 @@ class Router {
         $method = $_SERVER['REQUEST_METHOD'];
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         
+        // Remove o base path (subdiretório) da URL
+        $basePath = parse_url(APP_URL, PHP_URL_PATH) ?: '';
+        if ($basePath && strpos($uri, $basePath) === 0) {
+            $uri = substr($uri, strlen($basePath));
+        }
+        
         // Remove /public se existir
         $uri = preg_replace('#^/public#', '', $uri);
         $uri = '/' . trim($uri, '/');
