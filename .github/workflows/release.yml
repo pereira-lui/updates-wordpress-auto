@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,18 +27,21 @@ jobs:
           zip -r ../premium-updates-client-${{ steps.get_version.outputs.VERSION }}.zip .
           cd ..
 
-      - name: Create Server ZIP
-        run: |
-          cd server
-          zip -r ../premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip . -x "storage/plugins/*" -x "storage/logs/*" -x ".env"
-          cd ..
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             premium-updates-client-${{ steps.get_version.outputs.VERSION }}.zip
-            premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip
           generate_release_notes: true
+          body: |
+            ## Premium Updates Client v${{ steps.get_version.outputs.VERSION }}
+            
+            Plugin WordPress para receber atualizações automáticas de plugins premium.
+            
+            ### Instalação
+            1. Baixe o arquivo `premium-updates-client-${{ steps.get_version.outputs.VERSION }}.zip`
+            2. No WordPress, vá em Plugins > Adicionar Novo > Enviar Plugin
+            3. Envie o arquivo ZIP e ative o plugin
+            4. Configure em Configurações > Premium Updates
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
