@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Premium Updates Client
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
- * Description: Cliente para receber atualizações automáticas de plugins premium do servidor central.
- * Version: 2.0.0
+ * Description: Cliente para receber atualizações automáticas de plugins premium. Inclui sistema de assinatura integrado.
+ * Version: 3.0.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUC_VERSION', '2.0.0');
+define('PUC_VERSION', '3.0.0');
 define('PUC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -56,13 +56,26 @@ class Premium_Updates_Client {
         // AJAX
         add_action('wp_ajax_puc_test_connection', array($this, 'ajax_test_connection'));
         add_action('wp_ajax_puc_sync_plugins', array($this, 'ajax_sync_plugins'));
+        add_action('wp_ajax_puc_get_prices', array($this, 'ajax_get_prices'));
+        add_action('wp_ajax_puc_create_subscription', array($this, 'ajax_create_subscription'));
+        add_action('wp_ajax_puc_renew_subscription', array($this, 'ajax_renew_subscription'));
+        add_action('wp_ajax_puc_check_payment', array($this, 'ajax_check_payment'));
+        add_action('wp_ajax_puc_check_license', array($this, 'ajax_check_license'));
         
         // Cron
         add_action('puc_check_updates', array($this, 'scheduled_check_updates'));
+        add_action('puc_check_license_expiration', array($this, 'check_license_expiration'));
         
         if (!wp_next_scheduled('puc_check_updates')) {
             wp_schedule_event(time(), 'twicedaily', 'puc_check_updates');
         }
+        
+        if (!wp_next_scheduled('puc_check_license_expiration')) {
+            wp_schedule_event(time(), 'daily', 'puc_check_license_expiration');
+        }
+        
+        // Notificações
+        add_action('admin_notices', array($this, 'admin_notices'));
     }
 
     /**
@@ -133,7 +146,10 @@ class Premium_Updates_Client {
                 'testing' => __('Testando...', 'premium-updates-client'),
                 'syncing' => __('Sincronizando...', 'premium-updates-client'),
                 'success' => __('Sucesso!', 'premium-updates-client'),
-                'error' => __('Erro!', 'premium-updates-client')
+                'error' => __('Erro!', 'premium-updates-client'),
+                'loading' => __('Carregando...', 'premium-updates-client'),
+                'processing' => __('Processando...', 'premium-updates-client'),
+                'copy_success' => __('Código copiado!', 'premium-updates-client')
             )
         ));
     }
@@ -148,6 +164,7 @@ class Premium_Updates_Client {
 
         $managed_plugins = get_option('puc_managed_plugins', array());
         $all_plugins = get_plugins();
+        $license_status = get_option('puc_license_status', array());
         
         include PUC_PLUGIN_DIR . 'templates/settings.php';
     }
@@ -155,26 +172,32 @@ class Premium_Updates_Client {
     /**
      * Faz requisição para o servidor
      */
-    private function api_request($endpoint, $data = array()) {
-        if (empty($this->server_url) || empty($this->license_key)) {
-            return new WP_Error('not_configured', __('Plugin não configurado', 'premium-updates-client'));
+    private function api_request($endpoint, $data = array(), $method = 'POST') {
+        if (empty($this->server_url)) {
+            return new WP_Error('not_configured', __('URL do servidor não configurada', 'premium-updates-client'));
         }
 
-        // Nova API do servidor standalone
         $url = trailingslashit($this->server_url) . 'api/v1/' . $endpoint;
 
         $data['license_key'] = $this->license_key;
         $data['site_url'] = home_url('/');
 
-        $response = wp_remote_post($url, array(
+        $args = array(
             'timeout' => 30,
-            'body' => json_encode($data),
             'headers' => array(
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json'
             ),
             'sslverify' => true
-        ));
+        );
+
+        if ($method === 'POST') {
+            $args['body'] = json_encode($data);
+            $response = wp_remote_post($url, $args);
+        } else {
+            $url = add_query_arg($data, $url);
+            $response = wp_remote_get($url, $args);
+        }
 
         if (is_wp_error($response)) {
             return $response;
@@ -184,7 +207,7 @@ class Premium_Updates_Client {
         $body = wp_remote_retrieve_body($response);
         $result = json_decode($body, true);
 
-        if ($code !== 200) {
+        if ($code >= 400) {
             $message = isset($result['message']) ? $result['message'] : __('Erro desconhecido', 'premium-updates-client');
             return new WP_Error('api_error', $message);
         }
@@ -202,15 +225,13 @@ class Premium_Updates_Client {
 
         $managed_plugins = get_option('puc_managed_plugins', array());
         
-        if (empty($managed_plugins)) {
+        if (empty($managed_plugins) || empty($this->license_key)) {
             return $transient;
         }
 
-        // Prepara lista de plugins instalados para verificação
         $plugins_to_check = array();
         foreach ($managed_plugins as $plugin_file) {
             if (isset($transient->checked[$plugin_file])) {
-                // Extrai o slug do arquivo do plugin
                 $parts = explode('/', $plugin_file);
                 $slug = $parts[0];
                 $plugins_to_check[$slug] = $transient->checked[$plugin_file];
@@ -221,7 +242,6 @@ class Premium_Updates_Client {
             return $transient;
         }
 
-        // Consulta o servidor
         $result = $this->api_request('check-updates', array(
             'plugins' => $plugins_to_check
         ));
@@ -230,9 +250,7 @@ class Premium_Updates_Client {
             return $transient;
         }
 
-        // Adiciona atualizações encontradas
         foreach ($result['updates'] as $slug => $update) {
-            // Encontra o arquivo do plugin
             $plugin_file = $this->get_plugin_file_by_slug($slug);
             
             if ($plugin_file) {
@@ -274,7 +292,6 @@ class Premium_Updates_Client {
      * Gera URL de download
      */
     private function get_download_url($slug) {
-        // Nova API do servidor standalone
         $url = trailingslashit($this->server_url) . 'api/v1/download/' . $slug;
         
         return add_query_arg(array(
@@ -294,7 +311,6 @@ class Premium_Updates_Client {
         $managed_plugins = get_option('puc_managed_plugins', array());
         $slug = isset($args->slug) ? $args->slug : '';
 
-        // Verifica se é um plugin gerenciado
         $is_managed = false;
         foreach ($managed_plugins as $plugin_file) {
             if (strpos($plugin_file, $slug . '/') === 0) {
@@ -307,7 +323,6 @@ class Premium_Updates_Client {
             return $result;
         }
 
-        // Busca informações do servidor
         $response = $this->api_request('plugin-info/' . $slug);
 
         if (is_wp_error($response) || empty($response['plugin'])) {
@@ -373,6 +388,49 @@ class Premium_Updates_Client {
     }
 
     /**
+     * Verifica expiração da licença
+     */
+    public function check_license_expiration() {
+        if (empty($this->license_key)) {
+            return;
+        }
+
+        $result = $this->api_request('license/status');
+
+        if (!is_wp_error($result) && isset($result['license'])) {
+            update_option('puc_license_status', $result['license']);
+        }
+    }
+
+    /**
+     * Exibe notificações no admin
+     */
+    public function admin_notices() {
+        $license_status = get_option('puc_license_status', array());
+        
+        if (!empty($license_status['status']) && $license_status['status'] === 'expired') {
+            echo '<div class="notice notice-warning is-dismissible">';
+            echo '<p><strong>' . __('Premium Updates:', 'premium-updates-client') . '</strong> ';
+            echo __('Sua licença expirou. Renove para continuar recebendo atualizações.', 'premium-updates-client');
+            echo ' <a href="' . admin_url('options-general.php?page=premium-updates-client') . '">' . __('Renovar agora', 'premium-updates-client') . '</a></p>';
+            echo '</div>';
+        }
+        
+        if (!empty($license_status['expires_at'])) {
+            $expires = strtotime($license_status['expires_at']);
+            $days_left = floor(($expires - time()) / 86400);
+            
+            if ($days_left > 0 && $days_left <= 7) {
+                echo '<div class="notice notice-info is-dismissible">';
+                echo '<p><strong>' . __('Premium Updates:', 'premium-updates-client') . '</strong> ';
+                echo sprintf(__('Sua licença expira em %d dias.', 'premium-updates-client'), $days_left);
+                echo ' <a href="' . admin_url('options-general.php?page=premium-updates-client') . '">' . __('Renovar', 'premium-updates-client') . '</a></p>';
+                echo '</div>';
+            }
+        }
+    }
+
+    /**
      * AJAX: Testa conexão com o servidor
      */
     public function ajax_test_connection() {
@@ -385,24 +443,41 @@ class Premium_Updates_Client {
         $server_url = isset($_POST['server_url']) ? esc_url_raw($_POST['server_url']) : '';
         $license_key = isset($_POST['license_key']) ? sanitize_text_field($_POST['license_key']) : '';
 
-        if (empty($server_url) || empty($license_key)) {
-            wp_send_json_error(__('URL do servidor e chave de licença são obrigatórios', 'premium-updates-client'));
+        if (empty($server_url)) {
+            wp_send_json_error(__('URL do servidor é obrigatória', 'premium-updates-client'));
         }
 
-        // Temporariamente define as configurações para teste
         $this->server_url = $server_url;
         $this->license_key = $license_key;
 
-        $result = $this->api_request('validate-license');
+        if (!empty($license_key)) {
+            $result = $this->api_request('validate-license');
 
-        if (is_wp_error($result)) {
-            wp_send_json_error($result->get_error_message());
-        }
+            if (is_wp_error($result)) {
+                wp_send_json_error($result->get_error_message());
+            }
 
-        if (!empty($result['success'])) {
-            wp_send_json_success(__('Conexão estabelecida com sucesso!', 'premium-updates-client'));
+            if (!empty($result['success'])) {
+                update_option('puc_license_status', $result['license'] ?? array());
+                wp_send_json_success(array(
+                    'message' => __('Conexão e licença validadas com sucesso!', 'premium-updates-client'),
+                    'license' => $result['license'] ?? array()
+                ));
+            } else {
+                wp_send_json_error($result['message'] ?? __('Falha na validação', 'premium-updates-client'));
+            }
         } else {
-            wp_send_json_error($result['message'] ?? __('Falha na validação', 'premium-updates-client'));
+            // Apenas testa conexão sem licença
+            $result = $this->api_request('subscription/prices', array(), 'GET');
+            
+            if (is_wp_error($result)) {
+                wp_send_json_error($result->get_error_message());
+            }
+            
+            wp_send_json_success(array(
+                'message' => __('Conexão estabelecida! Configure uma licença para receber atualizações.', 'premium-updates-client'),
+                'needs_license' => true
+            ));
         }
     }
 
@@ -434,6 +509,199 @@ class Premium_Updates_Client {
             ));
         }
     }
+
+    /**
+     * AJAX: Obtém preços de assinatura
+     */
+    public function ajax_get_prices() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        $server_url = isset($_POST['server_url']) ? esc_url_raw($_POST['server_url']) : $this->server_url;
+        
+        if (empty($server_url)) {
+            wp_send_json_error(__('URL do servidor não configurada', 'premium-updates-client'));
+        }
+
+        $this->server_url = $server_url;
+        $result = $this->api_request('subscription/prices', array(), 'GET');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['data'])) {
+            wp_send_json_success($result['data']);
+        } elseif (!empty($result['prices'])) {
+            wp_send_json_success($result['prices']);
+        } else {
+            wp_send_json_error(__('Não foi possível obter os preços', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Cria nova assinatura
+     */
+    public function ajax_create_subscription() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        $server_url = isset($_POST['server_url']) ? esc_url_raw($_POST['server_url']) : $this->server_url;
+        $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
+        $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
+        $document = isset($_POST['document']) ? sanitize_text_field($_POST['document']) : '';
+        $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : 'monthly';
+        $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : 'pix';
+
+        if (empty($server_url) || empty($name) || empty($email)) {
+            wp_send_json_error(__('Preencha todos os campos obrigatórios', 'premium-updates-client'));
+        }
+
+        $this->server_url = $server_url;
+        
+        $result = $this->api_request('subscription/create', array(
+            'name' => $name,
+            'email' => $email,
+            'document' => $document,
+            'site_url' => home_url('/'),
+            'period' => $period,
+            'payment_method' => $payment_method
+        ));
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            // Salva informações temporárias do pagamento
+            update_option('puc_pending_payment', array(
+                'payment_id' => $result['payment_id'],
+                'license_id' => $result['license_id'],
+                'created_at' => time()
+            ));
+            
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao criar assinatura', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Renova assinatura
+     */
+    public function ajax_renew_subscription() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : '';
+        $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : 'pix';
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('subscription/renew', array(
+            'license_key' => $this->license_key,
+            'period' => $period,
+            'payment_method' => $payment_method
+        ));
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            update_option('puc_pending_payment', array(
+                'payment_id' => $result['payment_id'],
+                'created_at' => time()
+            ));
+            
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao renovar assinatura', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Verifica status do pagamento
+     */
+    public function ajax_check_payment() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        $payment_id = isset($_POST['payment_id']) ? sanitize_text_field($_POST['payment_id']) : '';
+
+        if (empty($payment_id)) {
+            $pending = get_option('puc_pending_payment', array());
+            $payment_id = $pending['payment_id'] ?? '';
+        }
+
+        if (empty($payment_id)) {
+            wp_send_json_error(__('Nenhum pagamento pendente', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('subscription/status/' . $payment_id, array(), 'GET');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            // Se pagamento confirmado, salva a licença
+            if ($result['status'] === 'confirmed' && !empty($result['license_key'])) {
+                update_option('puc_license_key', $result['license_key']);
+                $this->license_key = $result['license_key'];
+                delete_option('puc_pending_payment');
+                
+                // Atualiza status da licença
+                $this->check_license_expiration();
+            }
+            
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao verificar pagamento', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Verifica status da licença
+     */
+    public function ajax_check_license() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('license/status');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            update_option('puc_license_status', $result['license']);
+            wp_send_json_success($result['license']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao verificar licença', 'premium-updates-client'));
+        }
+    }
 }
 
 // Inicializa o plugin
@@ -442,4 +710,5 @@ Premium_Updates_Client::get_instance();
 // Cleanup ao desativar
 register_deactivation_hook(__FILE__, function() {
     wp_clear_scheduled_hook('puc_check_updates');
+    wp_clear_scheduled_hook('puc_check_license_expiration');
 });

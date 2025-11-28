@@ -60,7 +60,7 @@ class CheckoutController extends Controller {
         
         return $this->json([
             'success' => true,
-            'prices' => $result
+            'data' => $result
         ]);
     }
     

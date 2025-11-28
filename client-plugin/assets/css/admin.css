@@ -1,7 +1,7 @@
 /* Premium Updates Client - Admin Styles */
 
 .puc-admin {
-    max-width: 900px;
+    max-width: 1000px;
 }
 
 .puc-section {
@@ -9,12 +9,23 @@
     border: 1px solid #ccd0d4;
     padding: 20px;
     margin-bottom: 20px;
+    border-radius: 4px;
 }
 
 .puc-section h2 {
     margin-top: 0;
     padding-bottom: 10px;
     border-bottom: 1px solid #eee;
+}
+
+/* Tabs */
+.puc-tab-content {
+    display: none;
+    padding: 20px 0;
+}
+
+.puc-tab-content.active {
+    display: block;
 }
 
 /* Status badges */
@@ -76,3 +87,247 @@
 .puc-section .form-table th {
     width: 180px;
 }
+
+/* Pricing Cards */
+.puc-pricing-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.puc-pricing-card {
+    background: #fff;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    min-width: 180px;
+    flex: 1;
+    transition: all 0.3s ease;
+}
+
+.puc-pricing-card:hover,
+.puc-pricing-card.selected {
+    border-color: #2271b1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.puc-pricing-card h3 {
+    margin: 0 0 15px;
+    color: #1d2327;
+    font-size: 1.3em;
+}
+
+.puc-price {
+    font-size: 2em;
+    font-weight: bold;
+    color: #2271b1;
+    margin: 15px 0;
+}
+
+.puc-currency {
+    font-size: 0.5em;
+    vertical-align: super;
+}
+
+.puc-duration {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+/* Status Card */
+.puc-status-card {
+    background: #fff;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+    margin: 20px 0;
+}
+
+.puc-status-card.active {
+    border-color: #00a32a;
+}
+
+.puc-status-card.expired {
+    border-color: #d63638;
+}
+
+.puc-status-header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.puc-status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.puc-status-badge.active {
+    background: #00a32a;
+    color: #fff;
+}
+
+.puc-status-badge.expired {
+    background: #d63638;
+    color: #fff;
+}
+
+.puc-period-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    background: #2271b1;
+    color: #fff;
+    font-size: 12px;
+}
+
+.puc-status-details p {
+    margin: 10px 0;
+}
+
+.puc-status-details code {
+    background: #f0f0f1;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.puc-warning {
+    color: #996800;
+    background: #fcf9e8;
+    padding: 10px 15px;
+    border-radius: 4px;
+    border-left: 4px solid #dba617;
+}
+
+.puc-error {
+    color: #d63638;
+    background: #fcf0f0;
+    padding: 10px 15px;
+    border-radius: 4px;
+    border-left: 4px solid #d63638;
+}
+
+/* PIX Result */
+.puc-pix-result {
+    background: #f0f6fc;
+    border: 1px solid #2271b1;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.puc-pix-result img {
+    max-width: 250px;
+    margin: 20px 0;
+    border: 4px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.puc-pix-code {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 4px;
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 12px;
+    margin: 15px 0;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.puc-copy-btn {
+    margin-top: 10px;
+}
+
+/* Renew Section */
+.puc-renew-section {
+    border-top: 1px solid #ddd;
+    margin-top: 20px;
+    padding-top: 20px;
+}
+
+.puc-renew-section select {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Subscription Form */
+#puc-subscription-form {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+    margin-top: 30px;
+}
+
+#puc-subscription-form h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+#puc-credit-card-fields {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+#puc-credit-card-fields h4 {
+    margin-top: 0;
+}
+
+/* Loading state */
+.puc-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.puc-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: puc-spin 1s linear infinite;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+@keyframes puc-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .puc-pricing-cards {
+        flex-direction: column;
+    }
+    
+    .puc-pricing-card {
+        min-width: 100%;
+    }
+    
+    .puc-status-header {
+        flex-direction: column;
+    }
+    
+    .puc-renew-section select {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
