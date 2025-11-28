@@ -28,10 +28,14 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     Router::get('/licenses', 'Admin\LicenseController@index');
     Router::get('/licenses/create', 'Admin\LicenseController@create');
     Router::post('/licenses', 'Admin\LicenseController@store');
+    Router::get('/licenses/friend', 'Admin\LicenseController@createFriend');
+    Router::post('/licenses/friend', 'Admin\LicenseController@storeFriend');
+    Router::get('/licenses/{id}', 'Admin\LicenseController@show');
     Router::get('/licenses/{id}/edit', 'Admin\LicenseController@edit');
     Router::post('/licenses/{id}', 'Admin\LicenseController@update');
     Router::post('/licenses/{id}/delete', 'Admin\LicenseController@delete');
     Router::post('/licenses/{id}/toggle', 'Admin\LicenseController@toggle');
+    Router::post('/licenses/{id}/regenerate', 'Admin\LicenseController@regenerateKey');
     
     // Plugins
     Router::get('/plugins', 'Admin\PluginController@index');
@@ -55,7 +59,19 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     // Configurações
     Router::get('/settings', 'Admin\SettingsController@index');
     Router::post('/settings', 'Admin\SettingsController@update');
+    Router::get('/settings/profile', 'Admin\SettingsController@profile');
+    Router::post('/settings/profile', 'Admin\SettingsController@updateProfile');
+    Router::get('/settings/users', 'Admin\SettingsController@users');
+    Router::get('/settings/users/create', 'Admin\SettingsController@createUser');
+    Router::post('/settings/users', 'Admin\SettingsController@storeUser');
+    Router::post('/settings/users/{id}/delete', 'Admin\SettingsController@destroyUser');
     
     // Logs
     Router::get('/logs', 'Admin\LogController@index');
+    Router::get('/settings/logs', 'Admin\SettingsController@logs');
+    Router::post('/settings/logs/clear', 'Admin\SettingsController@clearLogs');
+    
+    // Relatório de pagamentos
+    Router::get('/payments/report', 'Admin\PaymentController@report');
+    Router::get('/payments/export', 'Admin\PaymentController@export');
 });

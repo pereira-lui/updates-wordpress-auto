@@ -170,7 +170,7 @@ class SettingsController extends Controller {
             redirect('/admin/settings/users/create');
         }
         
-        $errors = $this->validate([
+        $errors = $this->validate(input(), [
             'name' => 'required',
             'email' => 'required|email',
             'username' => 'required',
