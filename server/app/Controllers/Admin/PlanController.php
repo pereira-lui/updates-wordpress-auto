@@ -48,7 +48,7 @@ class PlanController extends Controller {
             redirect('/admin/plans/create');
         }
         
-        $errors = $this->validate([
+        $errors = $this->validate(input(), [
             'name' => 'required',
             'price' => 'required|numeric',
             'period' => 'required'
@@ -148,7 +148,7 @@ class PlanController extends Controller {
     /**
      * Exclui plano
      */
-    public function destroy($id) {
+    public function delete($id) {
         if (!verify_csrf($_POST['_token'] ?? '')) {
             flash('error', 'Token de segurança inválido');
             redirect('/admin/plans');

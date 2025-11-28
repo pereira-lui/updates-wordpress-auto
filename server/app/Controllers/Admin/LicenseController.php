@@ -52,7 +52,7 @@ class LicenseController extends Controller {
             redirect('/admin/licenses/create');
         }
         
-        $errors = $this->validate([
+        $errors = $this->validate(input(), [
             'client_name' => 'required',
             'client_email' => 'required|email',
             'type' => 'required'
@@ -173,7 +173,7 @@ class LicenseController extends Controller {
     /**
      * Exclui licença
      */
-    public function destroy($id) {
+    public function delete($id) {
         if (!verify_csrf($_POST['_token'] ?? '')) {
             flash('error', 'Token de segurança inválido');
             redirect('/admin/licenses');

@@ -27,11 +27,11 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     // Licenças
     Router::get('/licenses', 'Admin\LicenseController@index');
     Router::get('/licenses/create', 'Admin\LicenseController@create');
-    Router::post('/licenses/store', 'Admin\LicenseController@store');
-    Router::get('/licenses/edit/{id}', 'Admin\LicenseController@edit');
-    Router::post('/licenses/update/{id}', 'Admin\LicenseController@update');
-    Router::post('/licenses/delete/{id}', 'Admin\LicenseController@delete');
-    Router::post('/licenses/toggle/{id}', 'Admin\LicenseController@toggle');
+    Router::post('/licenses', 'Admin\LicenseController@store');
+    Router::get('/licenses/{id}/edit', 'Admin\LicenseController@edit');
+    Router::post('/licenses/{id}', 'Admin\LicenseController@update');
+    Router::post('/licenses/{id}/delete', 'Admin\LicenseController@delete');
+    Router::post('/licenses/{id}/toggle', 'Admin\LicenseController@toggle');
     
     // Plugins
     Router::get('/plugins', 'Admin\PluginController@index');
@@ -42,10 +42,11 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     // Planos
     Router::get('/plans', 'Admin\PlanController@index');
     Router::get('/plans/create', 'Admin\PlanController@create');
-    Router::post('/plans/store', 'Admin\PlanController@store');
-    Router::get('/plans/edit/{id}', 'Admin\PlanController@edit');
-    Router::post('/plans/update/{id}', 'Admin\PlanController@update');
-    Router::post('/plans/delete/{id}', 'Admin\PlanController@delete');
+    Router::post('/plans', 'Admin\PlanController@store');
+    Router::get('/plans/{id}/edit', 'Admin\PlanController@edit');
+    Router::post('/plans/{id}', 'Admin\PlanController@update');
+    Router::post('/plans/{id}/delete', 'Admin\PlanController@delete');
+    Router::post('/plans/{id}/toggle', 'Admin\PlanController@toggle');
     
     // Pagamentos
     Router::get('/payments', 'Admin\PaymentController@index');

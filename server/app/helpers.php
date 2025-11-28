@@ -233,3 +233,10 @@ function sanitize_slug($text) {
     // Remove hífens do início e fim
     return trim($text, '-');
 }
+
+/**
+ * Alias para sanitize_slug
+ */
+function slugify($text) {
+    return sanitize_slug($text);
+}
