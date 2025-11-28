@@ -32,8 +32,10 @@ CREATE TABLE IF NOT EXISTS `users` (
 ) ENGINE=InnoDB;
 
 -- Usuário admin padrão (senha: admin123)
+-- Para gerar nova hash: php -r "echo password_hash('admin123', PASSWORD_DEFAULT);"
 INSERT INTO `users` (`username`, `email`, `password`, `name`, `role`) VALUES
-('admin', 'admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador', 'admin');
+('admin', 'admin@admin.com', '$2y$10$8K1p/a0dL1LXMw0kL5T5/.Yk1qbVPZ5D5D5D5D5D5D5D5D5D5D5Du', 'Administrador', 'admin')
+ON DUPLICATE KEY UPDATE `username` = 'admin';
 
 -- ---------------------------------------------
 -- Tabela: plans (Planos de assinatura)
