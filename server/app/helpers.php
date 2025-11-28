@@ -207,3 +207,29 @@ function dd(...$vars) {
     echo '</pre>';
     exit;
 }
+
+/**
+ * Verifica token CSRF (alias)
+ */
+function verify_csrf($token = null) {
+    if ($token === null) {
+        $token = input('_token');
+    }
+    return $token && hash_equals(session('_csrf_token', ''), $token);
+}
+
+/**
+ * Sanitiza string para slug
+ */
+function sanitize_slug($text) {
+    // Remove acentos
+    $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+    // Converte para minúsculo
+    $text = strtolower($text);
+    // Remove caracteres especiais
+    $text = preg_replace('/[^a-z0-9\-]/', '-', $text);
+    // Remove hífens duplicados
+    $text = preg_replace('/-+/', '-', $text);
+    // Remove hífens do início e fim
+    return trim($text, '-');
+}

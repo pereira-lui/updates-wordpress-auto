@@ -5,9 +5,10 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Models\Plugin;
 use App\Models\ActivityLog;
+use ZipArchive;
 
 /**
- * Controller de Plugins
+ * Controller de Plugins - Upload automático
  */
 class PluginController extends Controller {
     
@@ -23,181 +24,253 @@ class PluginController extends Controller {
     }
     
     /**
-     * Formulário de criação
+     * Upload automático de plugin (novo ou atualização)
      */
-    public function create() {
-        return $this->view('admin/plugins/create');
-    }
-    
-    /**
-     * Salva novo plugin
-     */
-    public function store() {
+    public function upload() {
         if (!verify_csrf($_POST['_token'] ?? '')) {
-            flash('error', 'Token de segurança inválido');
-            redirect('/admin/plugins/create');
+            return $this->json(['success' => false, 'message' => 'Token de segurança inválido']);
         }
         
-        $errors = $this->validate([
-            'name' => 'required',
-            'slug' => 'required',
-            'version' => 'required'
-        ]);
-        
-        if (!empty($errors)) {
-            flash('error', 'Preencha todos os campos obrigatórios');
-            redirect('/admin/plugins/create');
+        if (empty($_FILES['zip_file']['tmp_name'])) {
+            return $this->json(['success' => false, 'message' => 'Nenhum arquivo enviado']);
         }
         
-        // Verifica se slug já existe
-        if (Plugin::findBySlug($_POST['slug'])) {
-            flash('error', 'Já existe um plugin com este slug');
-            redirect('/admin/plugins/create');
-        }
+        $file = $_FILES['zip_file'];
         
-        $data = [
-            'name' => $_POST['name'],
-            'slug' => slugify($_POST['slug']),
-            'version' => $_POST['version'],
-            'description' => $_POST['description'] ?? '',
-            'changelog' => $_POST['changelog'] ?? '',
-            'author' => $_POST['author'] ?? '',
-            'author_uri' => $_POST['author_uri'] ?? '',
-            'plugin_uri' => $_POST['plugin_uri'] ?? '',
-            'requires_wp' => $_POST['requires_wp'] ?? '5.0',
-            'tested_wp' => $_POST['tested_wp'] ?? '6.4',
-            'requires_php' => $_POST['requires_php'] ?? '7.4',
-            'is_active' => isset($_POST['is_active']) ? 1 : 0
-        ];
-        
-        $id = Plugin::create($data);
-        
-        // Upload do arquivo ZIP
-        if (!empty($_FILES['zip_file']['tmp_name'])) {
-            $result = Plugin::uploadZip($id, $_FILES['zip_file']);
-            if (!$result['success']) {
-                flash('warning', 'Plugin criado, mas houve erro no upload: ' . $result['message']);
+        // Verifica se é um arquivo ZIP válido
+        if ($file['type'] !== 'application/zip' && $file['type'] !== 'application/x-zip-compressed') {
+            // Tenta verificar pela extensão
+            if (pathinfo($file['name'], PATHINFO_EXTENSION) !== 'zip') {
+                return $this->json(['success' => false, 'message' => 'O arquivo deve ser um ZIP']);
             }
         }
         
-        ActivityLog::admin('Plugin criado', ['plugin_id' => $id, 'name' => $data['name']]);
+        // Extrai informações do plugin
+        $pluginInfo = $this->extractPluginInfo($file['tmp_name']);
         
-        flash('success', 'Plugin criado com sucesso!');
-        redirect('/admin/plugins');
-    }
-    
-    /**
-     * Exibe detalhes do plugin
-     */
-    public function show($id) {
-        $plugin = Plugin::find($id);
-        
-        if (!$plugin) {
-            flash('error', 'Plugin não encontrado');
-            redirect('/admin/plugins');
+        if (!$pluginInfo) {
+            return $this->json(['success' => false, 'message' => 'Não foi possível extrair informações do plugin. Verifique se o ZIP contém um plugin WordPress válido.']);
         }
         
-        return $this->view('admin/plugins/show', [
-            'plugin' => $plugin
-        ]);
-    }
-    
-    /**
-     * Formulário de edição
-     */
-    public function edit($id) {
-        $plugin = Plugin::find($id);
+        // Verifica se é uma atualização de plugin existente
+        $updateId = $_POST['update_id'] ?? null;
+        $existingPlugin = null;
         
-        if (!$plugin) {
-            flash('error', 'Plugin não encontrado');
-            redirect('/admin/plugins');
+        if ($updateId) {
+            $existingPlugin = Plugin::find($updateId);
+        } else {
+            $existingPlugin = Plugin::findBySlug($pluginInfo['slug']);
         }
         
-        return $this->view('admin/plugins/edit', [
-            'plugin' => $plugin
-        ]);
-    }
-    
-    /**
-     * Atualiza plugin
-     */
-    public function update($id) {
-        if (!verify_csrf($_POST['_token'] ?? '')) {
-            flash('error', 'Token de segurança inválido');
-            redirect('/admin/plugins/' . $id . '/edit');
-        }
-        
-        $plugin = Plugin::find($id);
-        
-        if (!$plugin) {
-            flash('error', 'Plugin não encontrado');
-            redirect('/admin/plugins');
-        }
-        
-        $data = [
-            'name' => $_POST['name'],
-            'version' => $_POST['version'],
-            'description' => $_POST['description'] ?? '',
-            'changelog' => $_POST['changelog'] ?? '',
-            'author' => $_POST['author'] ?? '',
-            'author_uri' => $_POST['author_uri'] ?? '',
-            'plugin_uri' => $_POST['plugin_uri'] ?? '',
-            'requires_wp' => $_POST['requires_wp'] ?? '5.0',
-            'tested_wp' => $_POST['tested_wp'] ?? '6.4',
-            'requires_php' => $_POST['requires_php'] ?? '7.4',
-            'is_active' => isset($_POST['is_active']) ? 1 : 0
-        ];
-        
-        Plugin::update($id, $data);
-        
-        // Upload do novo arquivo ZIP
-        if (!empty($_FILES['zip_file']['tmp_name'])) {
-            $result = Plugin::uploadZip($id, $_FILES['zip_file']);
+        if ($existingPlugin) {
+            // Atualiza plugin existente
+            $data = [
+                'name' => $pluginInfo['name'],
+                'version' => $pluginInfo['version'],
+                'description' => $pluginInfo['description'],
+                'author' => $pluginInfo['author'],
+                'author_uri' => $pluginInfo['author_uri'],
+                'plugin_uri' => $pluginInfo['plugin_uri'],
+                'requires_wp' => $pluginInfo['requires_wp'],
+                'tested_wp' => $pluginInfo['tested_wp'],
+                'requires_php' => $pluginInfo['requires_php']
+            ];
+            
+            Plugin::update($existingPlugin->id, $data);
+            
+            // Upload do arquivo
+            $result = $this->saveZipFile($existingPlugin->id, $existingPlugin->slug, $file, $pluginInfo['version']);
+            
             if (!$result['success']) {
-                flash('warning', 'Plugin atualizado, mas houve erro no upload: ' . $result['message']);
+                return $this->json(['success' => false, 'message' => 'Plugin atualizado, mas erro no upload: ' . $result['message']]);
+            }
+            
+            ActivityLog::admin('Plugin atualizado via upload', [
+                'plugin_id' => $existingPlugin->id,
+                'name' => $pluginInfo['name'],
+                'version' => $pluginInfo['version']
+            ]);
+            
+            return $this->json([
+                'success' => true,
+                'message' => "Plugin '{$pluginInfo['name']}' atualizado para v{$pluginInfo['version']}!"
+            ]);
+        } else {
+            // Cria novo plugin
+            $data = [
+                'name' => $pluginInfo['name'],
+                'slug' => $pluginInfo['slug'],
+                'version' => $pluginInfo['version'],
+                'description' => $pluginInfo['description'],
+                'changelog' => "= {$pluginInfo['version']} =\n* Versão inicial",
+                'author' => $pluginInfo['author'],
+                'author_uri' => $pluginInfo['author_uri'],
+                'plugin_uri' => $pluginInfo['plugin_uri'],
+                'requires_wp' => $pluginInfo['requires_wp'],
+                'tested_wp' => $pluginInfo['tested_wp'],
+                'requires_php' => $pluginInfo['requires_php'],
+                'is_active' => 1
+            ];
+            
+            $id = Plugin::create($data);
+            
+            // Upload do arquivo
+            $result = $this->saveZipFile($id, $pluginInfo['slug'], $file, $pluginInfo['version']);
+            
+            if (!$result['success']) {
+                return $this->json(['success' => false, 'message' => 'Plugin criado, mas erro no upload: ' . $result['message']]);
+            }
+            
+            ActivityLog::admin('Plugin criado via upload', [
+                'plugin_id' => $id,
+                'name' => $pluginInfo['name'],
+                'version' => $pluginInfo['version']
+            ]);
+            
+            return $this->json([
+                'success' => true,
+                'message' => "Plugin '{$pluginInfo['name']}' v{$pluginInfo['version']} adicionado com sucesso!"
+            ]);
+        }
+    }
+    
+    /**
+     * Extrai informações do cabeçalho do plugin WordPress
+     */
+    private function extractPluginInfo($zipPath) {
+        $zip = new ZipArchive();
+        
+        if ($zip->open($zipPath) !== true) {
+            return null;
+        }
+        
+        $pluginInfo = null;
+        $pluginSlug = null;
+        
+        // Procura pelo arquivo principal do plugin
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+            
+            // Pega o slug da pasta raiz
+            $parts = explode('/', $filename);
+            if (count($parts) >= 1 && !$pluginSlug) {
+                $pluginSlug = $parts[0];
+            }
+            
+            // Procura por arquivos PHP na raiz da pasta do plugin
+            if (preg_match('#^[^/]+/[^/]+\.php$#', $filename)) {
+                $content = $zip->getFromIndex($i);
+                
+                // Verifica se é o arquivo principal (contém Plugin Name:)
+                if (stripos($content, 'Plugin Name:') !== false) {
+                    $pluginInfo = $this->parsePluginHeader($content);
+                    $pluginInfo['slug'] = $pluginSlug;
+                    break;
+                }
             }
         }
         
-        ActivityLog::admin('Plugin atualizado', ['plugin_id' => $id, 'name' => $data['name']]);
+        $zip->close();
         
-        flash('success', 'Plugin atualizado com sucesso!');
-        redirect('/admin/plugins');
+        // Se não encontrou, tenta usar o nome do arquivo
+        if (!$pluginInfo && $pluginSlug) {
+            $pluginInfo = [
+                'name' => ucwords(str_replace(['-', '_'], ' ', $pluginSlug)),
+                'slug' => $pluginSlug,
+                'version' => '1.0.0',
+                'description' => '',
+                'author' => '',
+                'author_uri' => '',
+                'plugin_uri' => '',
+                'requires_wp' => '5.0',
+                'tested_wp' => '6.4',
+                'requires_php' => '7.4'
+            ];
+        }
+        
+        return $pluginInfo;
     }
     
     /**
-     * Exclui plugin
+     * Faz o parse do cabeçalho padrão de plugins WordPress
      */
-    public function destroy($id) {
-        if (!verify_csrf($_POST['_token'] ?? '')) {
-            flash('error', 'Token de segurança inválido');
-            redirect('/admin/plugins');
+    private function parsePluginHeader($content) {
+        $headers = [
+            'name' => 'Plugin Name',
+            'plugin_uri' => 'Plugin URI',
+            'version' => 'Version',
+            'description' => 'Description',
+            'author' => 'Author',
+            'author_uri' => 'Author URI',
+            'requires_wp' => 'Requires at least',
+            'tested_wp' => 'Tested up to',
+            'requires_php' => 'Requires PHP'
+        ];
+        
+        $result = [
+            'name' => '',
+            'slug' => '',
+            'version' => '1.0.0',
+            'description' => '',
+            'author' => '',
+            'author_uri' => '',
+            'plugin_uri' => '',
+            'requires_wp' => '5.0',
+            'tested_wp' => '6.4',
+            'requires_php' => '7.4'
+        ];
+        
+        foreach ($headers as $key => $header) {
+            if (preg_match('/^[\s\*]*' . preg_quote($header, '/') . ':\s*(.+)$/mi', $content, $match)) {
+                $result[$key] = trim($match[1]);
+            }
         }
         
-        $plugin = Plugin::find($id);
-        
-        if (!$plugin) {
-            flash('error', 'Plugin não encontrado');
-            redirect('/admin/plugins');
+        // Gera slug se não tiver
+        if (empty($result['slug']) && !empty($result['name'])) {
+            $result['slug'] = sanitize_slug($result['name']);
         }
         
-        // Remove arquivo ZIP
-        $zipPath = Plugin::getZipPath($plugin->slug);
-        if ($zipPath && file_exists($zipPath)) {
-            unlink($zipPath);
+        return $result;
+    }
+    
+    /**
+     * Salva o arquivo ZIP do plugin
+     */
+    private function saveZipFile($id, $slug, $file, $version) {
+        $uploadDir = STORAGE_PATH . '/plugins/' . $slug;
+        
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                return ['success' => false, 'message' => 'Não foi possível criar diretório'];
+            }
         }
         
-        Plugin::delete($id);
+        // Remove arquivos antigos
+        $files = glob($uploadDir . '/*.zip');
+        foreach ($files as $oldFile) {
+            unlink($oldFile);
+        }
         
-        ActivityLog::admin('Plugin excluído', ['name' => $plugin->name]);
+        $filename = $slug . '-' . $version . '.zip';
+        $destination = $uploadDir . '/' . $filename;
         
-        flash('success', 'Plugin excluído com sucesso!');
-        redirect('/admin/plugins');
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
+            Plugin::update($id, ['zip_file' => $filename]);
+            return ['success' => true, 'filename' => $filename];
+        }
+        
+        return ['success' => false, 'message' => 'Erro ao mover arquivo'];
     }
     
     /**
      * Alterna status do plugin
      */
     public function toggle($id) {
+        if (!verify_csrf($_POST['_token'] ?? '')) {
+            return $this->json(['success' => false, 'message' => 'Token inválido']);
+        }
+        
         $plugin = Plugin::find($id);
         
         if (!$plugin) {
@@ -220,36 +293,36 @@ class PluginController extends Controller {
     }
     
     /**
-     * Upload de nova versão
+     * Exclui plugin
      */
-    public function uploadVersion($id) {
+    public function destroy($id) {
+        if (!verify_csrf($_POST['_token'] ?? '')) {
+            flash('error', 'Token de segurança inválido');
+            redirect('/admin/plugins');
+        }
+        
         $plugin = Plugin::find($id);
         
         if (!$plugin) {
-            return $this->json(['success' => false, 'message' => 'Plugin não encontrado']);
+            flash('error', 'Plugin não encontrado');
+            redirect('/admin/plugins');
         }
         
-        if (empty($_FILES['zip_file']['tmp_name'])) {
-            return $this->json(['success' => false, 'message' => 'Nenhum arquivo enviado']);
+        // Remove pasta do plugin
+        $pluginDir = STORAGE_PATH . '/plugins/' . $plugin->slug;
+        if (is_dir($pluginDir)) {
+            $files = glob($pluginDir . '/*');
+            foreach ($files as $file) {
+                unlink($file);
+            }
+            rmdir($pluginDir);
         }
         
-        if (empty($_POST['version'])) {
-            return $this->json(['success' => false, 'message' => 'Versão não informada']);
-        }
+        Plugin::delete($id);
         
-        // Atualiza versão
-        Plugin::update($id, ['version' => $_POST['version']]);
+        ActivityLog::admin('Plugin excluído', ['name' => $plugin->name]);
         
-        // Upload do arquivo
-        $result = Plugin::uploadZip($id, $_FILES['zip_file']);
-        
-        if ($result['success']) {
-            ActivityLog::admin('Nova versão do plugin enviada', [
-                'plugin_id' => $id,
-                'version' => $_POST['version']
-            ]);
-        }
-        
-        return $this->json($result);
+        flash('success', 'Plugin excluído com sucesso!');
+        redirect('/admin/plugins');
     }
 }

@@ -35,12 +35,9 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     
     // Plugins
     Router::get('/plugins', 'Admin\PluginController@index');
-    Router::get('/plugins/create', 'Admin\PluginController@create');
-    Router::post('/plugins/store', 'Admin\PluginController@store');
-    Router::get('/plugins/edit/{id}', 'Admin\PluginController@edit');
-    Router::post('/plugins/update/{id}', 'Admin\PluginController@update');
-    Router::post('/plugins/delete/{id}', 'Admin\PluginController@delete');
-    Router::post('/plugins/upload/{id}', 'Admin\PluginController@upload');
+    Router::post('/plugins/upload', 'Admin\PluginController@upload');
+    Router::post('/plugins/{id}/toggle', 'Admin\PluginController@toggle');
+    Router::post('/plugins/{id}/delete', 'Admin\PluginController@destroy');
     
     // Planos
     Router::get('/plans', 'Admin\PlanController@index');
