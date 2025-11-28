@@ -1,12 +1,15 @@
 -- =============================================
 -- Premium Updates - Database Schema
 -- =============================================
+-- NOTA: Importe este arquivo no banco de dados já existente
+-- Não é necessário criar o banco, use o que já existe (ex: updates-wp)
+-- =============================================
 
-CREATE DATABASE IF NOT EXISTS `premium_updates` 
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
-
-USE `premium_updates`;
+-- Descomente as linhas abaixo APENAS se tiver permissão para criar banco
+-- CREATE DATABASE IF NOT EXISTS `premium_updates` 
+-- CHARACTER SET utf8mb4 
+-- COLLATE utf8mb4_unicode_ci;
+-- USE `premium_updates`;
 
 -- ---------------------------------------------
 -- Tabela: users (Usuários administrativos)
