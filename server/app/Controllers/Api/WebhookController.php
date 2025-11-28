@@ -23,7 +23,7 @@ class WebhookController extends Controller {
         $data = json_decode($payload, true);
         
         if (!$data) {
-            return $this->json(['error' => 'Invalid payload'], 400);
+            return $this->json(['error' => 'Payload inválido'], 400);
         }
         
         // Log do webhook

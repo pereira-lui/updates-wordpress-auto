@@ -2,6 +2,8 @@
 
 Sistema de gerenciamento de licenças e atualizações de plugins WordPress premium.
 
+> **Nota:** Todo o sistema está em Português (Brasil).
+
 ## 🚀 Requisitos
 
 - PHP 8.0+
