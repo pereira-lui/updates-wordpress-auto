@@ -15,6 +15,28 @@ define('CONFIG_PATH', ROOT_PATH . '/config');
 define('VIEWS_PATH', ROOT_PATH . '/resources/views');
 define('STORAGE_PATH', ROOT_PATH . '/storage');
 
+// Carrega variáveis de ambiente do arquivo .env
+$envFile = ROOT_PATH . '/.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        // Ignora comentários
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+        // Parse KEY=VALUE
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            // Remove aspas se existirem
+            $value = trim($value, '"\'');
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+        }
+    }
+}
+
 // Carrega configurações
 $config = require CONFIG_PATH . '/app.php';
 
