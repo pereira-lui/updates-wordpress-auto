@@ -18,24 +18,24 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Create Server Plugin ZIP
-        run: |
-          cd server-plugin
-          zip -r ../premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip .
-          cd ..
-
       - name: Create Client Plugin ZIP
         run: |
           cd client-plugin
           zip -r ../premium-updates-client-${{ steps.get_version.outputs.VERSION }}.zip .
           cd ..
 
+      - name: Create Server ZIP
+        run: |
+          cd server
+          zip -r ../premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip . -x "storage/plugins/*" -x "storage/logs/*" -x ".env"
+          cd ..
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip
             premium-updates-client-${{ steps.get_version.outputs.VERSION }}.zip
+            premium-updates-server-${{ steps.get_version.outputs.VERSION }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
