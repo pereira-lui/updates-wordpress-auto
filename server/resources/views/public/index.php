@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luia Updates - Atualizações Automáticas para WordPress</title>
+    <title>Atualizações Automáticas para WordPress</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -113,7 +113,7 @@
 <body>
     <div class="hero">
         <div class="container">
-            <h1><i class="bi bi-cloud-download"></i> Luia Updates</h1>
+            <h1><i class="bi bi-cloud-download"></i> Atualizações Automáticas</h1>
             <p>Atualizações automáticas para seus plugins WordPress premium. Receba sempre as últimas versões diretamente no painel do WordPress.</p>
         </div>
     </div>
@@ -189,7 +189,7 @@
     </div>
     
     <div class="footer">
-        <p>&copy; <?= date('Y') ?> Luia Systems. Todos os direitos reservados.</p>
+        <p>&copy; <?= date('Y') ?> Todos os direitos reservados.</p>
         <a href="<?= url('/login') ?>" class="text-white">Área Administrativa</a>
     </div>
 </body>
