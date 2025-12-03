@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Premium Updates Client
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
- * Description: Cliente para receber atualizações automáticas de plugins premium. Inclui sistema de assinatura integrado.
- * Version: 3.1.0
+ * Description: Cliente para receber atualizações automáticas de plugins premium. Inclui sistema de assinatura integrado e rollback automático em caso de erros.
+ * Version: 3.2.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,9 +14,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUC_VERSION', '3.1.0');
+define('PUC_VERSION', '3.2.0');
 define('PUC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUC_PLUGIN_URL', plugin_dir_url(__FILE__));
+
+// Carrega o módulo de atualização segura
+require_once PUC_PLUGIN_DIR . 'includes/class-safe-updater.php';
 
 /**
  * Classe principal do plugin cliente

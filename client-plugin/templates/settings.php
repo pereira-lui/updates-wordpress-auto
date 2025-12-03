@@ -21,6 +21,7 @@ $has_license = !empty($license_key) && !empty($server_url);
         <a href="#tab-payments" class="nav-tab" data-tab="payments"><?php _e('Pagamentos', 'premium-updates-client'); ?></a>
         <a href="#tab-updates-history" class="nav-tab" data-tab="updates-history"><?php _e('Histórico de Atualizações', 'premium-updates-client'); ?></a>
         <?php endif; ?>
+        <a href="#tab-backups" class="nav-tab" data-tab="backups"><?php _e('Backups & Rollback', 'premium-updates-client'); ?></a>
     </nav>
 
     <!-- Tab: Settings -->
@@ -480,4 +481,115 @@ $has_license = !empty($license_key) && !empty($server_url);
         </div>
     </div>
     <?php endif; ?>
+
+    <!-- Tab: Backups & Rollback -->
+    <div id="tab-backups" class="puc-tab-content">
+        <div class="puc-section">
+            <h2><?php _e('Backups & Rollback', 'premium-updates-client'); ?></h2>
+            
+            <div class="puc-safe-update-info">
+                <div class="puc-info-box">
+                    <h3><span class="dashicons dashicons-shield"></span> <?php _e('Atualização Segura', 'premium-updates-client'); ?></h3>
+                    <p><?php _e('Este sistema protege seu site automaticamente durante as atualizações de plugins gerenciados:', 'premium-updates-client'); ?></p>
+                    <ul>
+                        <li><span class="dashicons dashicons-yes"></span> <?php _e('Backup automático antes de cada atualização', 'premium-updates-client'); ?></li>
+                        <li><span class="dashicons dashicons-yes"></span> <?php _e('Verificação de saúde do site após atualizar', 'premium-updates-client'); ?></li>
+                        <li><span class="dashicons dashicons-yes"></span> <?php _e('Rollback automático se detectar problemas', 'premium-updates-client'); ?></li>
+                        <li><span class="dashicons dashicons-yes"></span> <?php _e('Notificação por email em caso de rollback', 'premium-updates-client'); ?></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Health Check Manual -->
+            <div class="puc-subsection">
+                <h3><?php _e('Verificação de Saúde do Site', 'premium-updates-client'); ?></h3>
+                <p class="description"><?php _e('Execute uma verificação manual para garantir que seu site está funcionando corretamente:', 'premium-updates-client'); ?></p>
+                
+                <div class="puc-health-check-container">
+                    <button type="button" id="puc-run-health-check" class="button button-secondary">
+                        <span class="dashicons dashicons-heart"></span> <?php _e('Executar Verificação', 'premium-updates-client'); ?>
+                    </button>
+                    
+                    <div id="puc-health-check-result" class="puc-health-result" style="display: none;">
+                        <div class="puc-health-status">
+                            <span class="puc-health-icon"></span>
+                            <span class="puc-health-message"></span>
+                        </div>
+                        <div class="puc-health-details"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lista de Backups -->
+            <div class="puc-subsection">
+                <h3><?php _e('Backups Disponíveis', 'premium-updates-client'); ?></h3>
+                <p class="description"><?php _e('Os backups são criados automaticamente antes de cada atualização. Você pode restaurar uma versão anterior manualmente se necessário:', 'premium-updates-client'); ?></p>
+                
+                <div class="puc-backups-actions">
+                    <button type="button" id="puc-refresh-backups" class="button">
+                        <span class="dashicons dashicons-update"></span> <?php _e('Atualizar Lista', 'premium-updates-client'); ?>
+                    </button>
+                </div>
+                
+                <div id="puc-backups-loading" class="puc-loading-container" style="display: none;">
+                    <span class="spinner is-active" style="float: none;"></span>
+                    <p><?php _e('Carregando backups...', 'premium-updates-client'); ?></p>
+                </div>
+                
+                <table id="puc-backups-table" class="wp-list-table widefat fixed striped" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Plugin', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Versão', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Data do Backup', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Tamanho', 'premium-updates-client'); ?></th>
+                            <th><?php _e('Ações', 'premium-updates-client'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="puc-backups-tbody">
+                    </tbody>
+                </table>
+                
+                <div id="puc-backups-empty" class="puc-empty-state" style="display: none;">
+                    <span class="dashicons dashicons-backup"></span>
+                    <p><?php _e('Nenhum backup disponível.', 'premium-updates-client'); ?></p>
+                    <p class="description"><?php _e('Os backups serão criados automaticamente quando você atualizar plugins gerenciados.', 'premium-updates-client'); ?></p>
+                </div>
+            </div>
+            
+            <!-- Configurações de Safe Update -->
+            <div class="puc-subsection">
+                <h3><?php _e('Configurações', 'premium-updates-client'); ?></h3>
+                
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Rollback Automático', 'premium-updates-client'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" id="puc-auto-rollback" checked disabled>
+                                <?php _e('Reverter automaticamente se detectar erros após atualização', 'premium-updates-client'); ?>
+                            </label>
+                            <p class="description"><?php _e('Esta opção está sempre ativada para proteger seu site.', 'premium-updates-client'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Notificações por Email', 'premium-updates-client'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" id="puc-email-notifications" checked disabled>
+                                <?php _e('Enviar email quando um rollback for executado', 'premium-updates-client'); ?>
+                            </label>
+                            <p class="description"><?php printf(__('Emails serão enviados para: %s', 'premium-updates-client'), '<code>' . get_option('admin_email') . '</code>'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Retenção de Backups', 'premium-updates-client'); ?></th>
+                        <td>
+                            <p><?php _e('O sistema mantém os últimos 3 backups de cada plugin automaticamente.', 'premium-updates-client'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>

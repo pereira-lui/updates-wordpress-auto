@@ -677,6 +677,227 @@
     color: #999;
 }
 
+/* ==========================================
+   Backups & Health Check Styles
+   ========================================== */
+
+.puc-safe-update-info {
+    margin-bottom: 30px;
+}
+
+.puc-info-box {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+    border-left: 4px solid #0073aa;
+    padding: 20px 25px;
+    border-radius: 4px;
+}
+
+.puc-info-box h3 {
+    margin: 0 0 10px 0;
+    color: #0073aa;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.puc-info-box h3 .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.puc-info-box p {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.puc-info-box ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.puc-info-box ul li {
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #333;
+}
+
+.puc-info-box ul li .dashicons {
+    color: #00a32a;
+}
+
+.puc-subsection {
+    margin: 30px 0;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.puc-subsection h3 {
+    margin: 0 0 10px 0;
+}
+
+.puc-subsection > .description {
+    margin-bottom: 15px;
+}
+
+/* Health Check */
+.puc-health-check-container {
+    margin-top: 15px;
+}
+
+#puc-run-health-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#puc-run-health-check .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.puc-health-result {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.puc-health-result.healthy {
+    background: #f0fff4;
+    border-color: #00a32a;
+}
+
+.puc-health-result.unhealthy {
+    background: #fff5f5;
+    border-color: #d63638;
+}
+
+.puc-health-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.puc-health-icon .dashicons {
+    font-size: 30px;
+    width: 30px;
+    height: 30px;
+}
+
+.puc-health-result.healthy .puc-health-icon .dashicons {
+    color: #00a32a;
+}
+
+.puc-health-result.unhealthy .puc-health-icon .dashicons {
+    color: #d63638;
+}
+
+.puc-health-message {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.puc-health-details {
+    margin-top: 10px;
+}
+
+.puc-health-check-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.puc-health-check-list li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.puc-health-check-list li:last-child {
+    border-bottom: none;
+}
+
+.puc-health-check-list li.pass .dashicons {
+    color: #00a32a;
+}
+
+.puc-health-check-list li.fail .dashicons {
+    color: #d63638;
+}
+
+/* Backups Table */
+.puc-backups-actions {
+    margin-bottom: 15px;
+}
+
+#puc-backups-table {
+    margin-top: 15px;
+}
+
+#puc-backups-table td {
+    vertical-align: middle;
+}
+
+.puc-rollback-btn {
+    color: #0073aa;
+}
+
+.puc-rollback-btn:hover {
+    color: #005177;
+}
+
+.puc-delete-backup-btn {
+    color: #b32d2e !important;
+}
+
+.puc-delete-backup-btn:hover {
+    color: #a00 !important;
+}
+
+/* Empty state for backups */
+#puc-backups-empty {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+#puc-backups-empty .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #ccc;
+    margin-bottom: 15px;
+}
+
+#puc-backups-empty p {
+    margin: 10px 0;
+    color: #666;
+}
+
+#puc-backups-empty .description {
+    font-size: 13px;
+    color: #999;
+}
+
+/* Rollback Notice */
+.puc-rollback-notice {
+    border-left-color: #dba617;
+}
+
+.puc-rollback-notice code {
+    background: rgba(0,0,0,0.07);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+
 /* Responsive */
 @media screen and (max-width: 782px) {
     .puc-pricing-cards {
@@ -712,6 +933,15 @@
     
     .puc-plugins-list {
         grid-template-columns: 1fr;
+    }
+    
+    .puc-info-box {
+        padding: 15px;
+    }
+    
+    .puc-health-status {
+        flex-direction: column;
+        text-align: center;
     }
 }
 

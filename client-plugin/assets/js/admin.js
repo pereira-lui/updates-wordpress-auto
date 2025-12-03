@@ -9,6 +9,7 @@
     var accountLoaded = false;
     var paymentsLoaded = false;
     var updatesLoaded = false;
+    var backupsLoaded = false;
 
     $(document).ready(function() {
         
@@ -44,6 +45,11 @@
             // Load updates history
             if (tab === 'updates-history' && !updatesLoaded) {
                 loadUpdatesHistory();
+            }
+            
+            // Load backups
+            if (tab === 'backups' && !backupsLoaded) {
+                loadBackups();
             }
         });
         
@@ -744,6 +750,239 @@
             var div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        // ==========================================
+        // Backups & Health Check Functions
+        // ==========================================
+
+        // Load backups
+        function loadBackups() {
+            $('#puc-backups-loading').show();
+            $('#puc-backups-table').hide();
+            $('#puc-backups-empty').hide();
+            
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_get_backups',
+                    nonce: pucAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        backupsLoaded = true;
+                        renderBackups(response.data);
+                    } else {
+                        $('#puc-backups-loading').hide();
+                        $('#puc-backups-empty').html('<p>' + (response.data || 'Erro ao carregar backups') + '</p>').show();
+                    }
+                },
+                error: function() {
+                    $('#puc-backups-loading').hide();
+                    $('#puc-backups-empty').html('<p>Erro de conexão</p>').show();
+                }
+            });
+        }
+
+        // Render backups table
+        function renderBackups(backups) {
+            $('#puc-backups-loading').hide();
+            
+            if (backups && backups.length > 0) {
+                var tbodyHtml = '';
+                
+                backups.forEach(function(backup) {
+                    tbodyHtml += '<tr data-backup-dir="' + escapeHtml(backup.dir_name) + '">' +
+                        '<td><strong>' + escapeHtml(backup.plugin_slug) + '</strong></td>' +
+                        '<td>v' + escapeHtml(backup.version) + '</td>' +
+                        '<td>' + escapeHtml(backup.created_at_formatted) + '</td>' +
+                        '<td>' + escapeHtml(backup.size_formatted) + '</td>' +
+                        '<td>' +
+                        '<button type="button" class="button button-small puc-rollback-btn" data-backup-dir="' + escapeHtml(backup.dir_name) + '" data-plugin="' + escapeHtml(backup.plugin_slug) + '" data-version="' + escapeHtml(backup.version) + '">' +
+                        '<span class="dashicons dashicons-undo" style="vertical-align:middle;"></span> Restaurar' +
+                        '</button> ' +
+                        '<button type="button" class="button button-small button-link-delete puc-delete-backup-btn" data-backup-dir="' + escapeHtml(backup.dir_name) + '">' +
+                        '<span class="dashicons dashicons-trash" style="vertical-align:middle;"></span>' +
+                        '</button>' +
+                        '</td>' +
+                        '</tr>';
+                });
+                
+                $('#puc-backups-tbody').html(tbodyHtml);
+                $('#puc-backups-table').show();
+                $('#puc-backups-empty').hide();
+                
+                // Bind rollback buttons
+                bindBackupActions();
+            } else {
+                $('#puc-backups-table').hide();
+                $('#puc-backups-empty').show();
+            }
+        }
+
+        // Bind backup action buttons
+        function bindBackupActions() {
+            // Rollback button
+            $('.puc-rollback-btn').off('click').on('click', function() {
+                var $btn = $(this);
+                var backupDir = $btn.data('backup-dir');
+                var plugin = $btn.data('plugin');
+                var version = $btn.data('version');
+                
+                if (!confirm('Tem certeza que deseja restaurar "' + plugin + '" para a versão ' + version + '?\n\nIsso substituirá a versão atual do plugin.')) {
+                    return;
+                }
+                
+                $btn.prop('disabled', true).html('<span class="puc-spinner"></span> Restaurando...');
+                
+                $.ajax({
+                    url: pucAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'puc_manual_rollback',
+                        nonce: pucAdmin.nonce,
+                        backup_dir: backupDir
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert(response.data.message || 'Restauração concluída com sucesso!');
+                            window.location.reload();
+                        } else {
+                            alert('Erro: ' + (response.data || 'Falha na restauração'));
+                            $btn.prop('disabled', false).html('<span class="dashicons dashicons-undo" style="vertical-align:middle;"></span> Restaurar');
+                        }
+                    },
+                    error: function() {
+                        alert('Erro de conexão');
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-undo" style="vertical-align:middle;"></span> Restaurar');
+                    }
+                });
+            });
+            
+            // Delete backup button
+            $('.puc-delete-backup-btn').off('click').on('click', function() {
+                var $btn = $(this);
+                var backupDir = $btn.data('backup-dir');
+                
+                if (!confirm('Tem certeza que deseja excluir este backup?\n\nEsta ação não pode ser desfeita.')) {
+                    return;
+                }
+                
+                $btn.prop('disabled', true);
+                
+                $.ajax({
+                    url: pucAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'puc_delete_backup',
+                        nonce: pucAdmin.nonce,
+                        backup_dir: backupDir
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $btn.closest('tr').fadeOut(400, function() {
+                                $(this).remove();
+                                
+                                // Check if table is now empty
+                                if ($('#puc-backups-tbody tr').length === 0) {
+                                    $('#puc-backups-table').hide();
+                                    $('#puc-backups-empty').show();
+                                }
+                            });
+                        } else {
+                            alert('Erro: ' + (response.data || 'Falha ao excluir backup'));
+                            $btn.prop('disabled', false);
+                        }
+                    },
+                    error: function() {
+                        alert('Erro de conexão');
+                        $btn.prop('disabled', false);
+                    }
+                });
+            });
+        }
+
+        // Refresh backups button
+        $('#puc-refresh-backups').on('click', function() {
+            backupsLoaded = false;
+            loadBackups();
+        });
+
+        // Health check button
+        $('#puc-run-health-check').on('click', function() {
+            var $btn = $(this);
+            var $result = $('#puc-health-check-result');
+            
+            $btn.prop('disabled', true).html('<span class="puc-spinner"></span> Verificando...');
+            $result.hide();
+            
+            // Make a request to the site's REST API for health check
+            $.ajax({
+                url: pucAdmin.ajaxUrl.replace('admin-ajax.php', '') + '?rest_route=/puc/v1/health',
+                type: 'GET',
+                timeout: 15000,
+                success: function(response) {
+                    renderHealthCheckResult(response);
+                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-heart"></span> Executar Verificação');
+                    $result.slideDown();
+                },
+                error: function(xhr, status, error) {
+                    renderHealthCheckResult({
+                        healthy: false,
+                        message: 'Erro ao conectar: ' + (error || status),
+                        checks: {}
+                    });
+                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-heart"></span> Executar Verificação');
+                    $result.slideDown();
+                }
+            });
+        });
+
+        // Render health check result
+        function renderHealthCheckResult(result) {
+            var $container = $('#puc-health-check-result');
+            var $status = $container.find('.puc-health-status');
+            var $icon = $container.find('.puc-health-icon');
+            var $message = $container.find('.puc-health-message');
+            var $details = $container.find('.puc-health-details');
+            
+            // Clear previous state
+            $container.removeClass('healthy unhealthy');
+            
+            if (result.healthy) {
+                $container.addClass('healthy');
+                $icon.html('<span class="dashicons dashicons-yes-alt"></span>');
+                $message.text('Site funcionando corretamente!');
+            } else {
+                $container.addClass('unhealthy');
+                $icon.html('<span class="dashicons dashicons-warning"></span>');
+                $message.text(result.message || 'Problemas detectados');
+            }
+            
+            // Render details
+            var detailsHtml = '<ul class="puc-health-check-list">';
+            
+            if (result.checks) {
+                for (var checkName in result.checks) {
+                    var check = result.checks[checkName];
+                    var iconClass = check.pass ? 'dashicons-yes' : 'dashicons-no';
+                    var statusClass = check.pass ? 'pass' : 'fail';
+                    
+                    detailsHtml += '<li class="' + statusClass + '">' +
+                        '<span class="dashicons ' + iconClass + '"></span> ' +
+                        escapeHtml(check.message) +
+                        '</li>';
+                }
+            }
+            
+            detailsHtml += '</ul>';
+            $details.html(detailsHtml);
+        }
+
+        // Auto-load backups on page load if on backups tab
+        if (window.location.hash === '#backups') {
+            loadBackups();
         }
     });
 
