@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Models\License;
 use App\Models\Plugin;
 use App\Models\ActivityLog;
+use App\Models\UpdateLog;
 
 /**
  * Controller da API de Updates (para o plugin WordPress cliente)
@@ -671,5 +672,247 @@ class UpdateController extends Controller {
             'cancelled' => 'Cancelada'
         ];
         return $labels[$status] ?? $status;
+    }
+    
+    /**
+     * Registra início de uma atualização
+     * POST /api/v1/update/started
+     */
+    public function updateStarted() {
+        $licenseKey = $this->getInput('license_key');
+        $pluginSlug = $this->getInput('plugin_slug');
+        $fromVersion = $this->getInput('from_version');
+        $toVersion = $this->getInput('to_version');
+        $siteUrl = $this->getInput('site_url');
+        $wpVersion = $this->getInput('wp_version');
+        $phpVersion = $this->getInput('php_version');
+        
+        if (empty($licenseKey) || empty($pluginSlug) || empty($toVersion)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Dados incompletos'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Cria log de atualização
+        $logId = UpdateLog::create([
+            'license_id' => $license->id,
+            'plugin_slug' => $pluginSlug,
+            'from_version' => $fromVersion,
+            'to_version' => $toVersion,
+            'status' => UpdateLog::STATUS_STARTED,
+            'site_url' => $siteUrl,
+            'wp_version' => $wpVersion,
+            'php_version' => $phpVersion
+        ]);
+        
+        // Atualiza status na licença
+        License::update($license->id, [
+            'update_status' => 'pending',
+            'update_status_at' => date('Y-m-d H:i:s')
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'log_id' => $logId,
+            'message' => 'Atualização iniciada'
+        ]);
+    }
+    
+    /**
+     * Registra sucesso de uma atualização
+     * POST /api/v1/update/success
+     */
+    public function updateSuccess() {
+        $licenseKey = $this->getInput('license_key');
+        $logId = $this->getInput('log_id');
+        $pluginSlug = $this->getInput('plugin_slug');
+        $toVersion = $this->getInput('to_version');
+        $healthCheckPassed = $this->getInput('health_check_passed', true);
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Dados incompletos'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Atualiza log se existir
+        if ($logId) {
+            UpdateLog::update($logId, [
+                'status' => UpdateLog::STATUS_SUCCESS,
+                'health_check_passed' => $healthCheckPassed ? 1 : 0,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        } else if ($pluginSlug && $toVersion) {
+            // Cria novo log de sucesso
+            UpdateLog::create([
+                'license_id' => $license->id,
+                'plugin_slug' => $pluginSlug,
+                'to_version' => $toVersion,
+                'status' => UpdateLog::STATUS_SUCCESS,
+                'health_check_passed' => $healthCheckPassed ? 1 : 0,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+        
+        // Atualiza status na licença
+        License::update($license->id, [
+            'update_status' => 'ok',
+            'update_status_at' => date('Y-m-d H:i:s'),
+            'last_error_message' => null
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Atualização concluída com sucesso'
+        ]);
+    }
+    
+    /**
+     * Registra erro em uma atualização
+     * POST /api/v1/update/error
+     */
+    public function updateError() {
+        $licenseKey = $this->getInput('license_key');
+        $logId = $this->getInput('log_id');
+        $pluginSlug = $this->getInput('plugin_slug');
+        $toVersion = $this->getInput('to_version');
+        $errorMessage = $this->getInput('error_message');
+        $errorType = $this->getInput('error_type');
+        $healthCheckPassed = $this->getInput('health_check_passed', false);
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Dados incompletos'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Atualiza log se existir
+        if ($logId) {
+            UpdateLog::update($logId, [
+                'status' => UpdateLog::STATUS_ERROR,
+                'error_message' => $errorMessage,
+                'error_type' => $errorType,
+                'health_check_passed' => $healthCheckPassed ? 1 : 0,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        } else if ($pluginSlug) {
+            // Cria novo log de erro
+            UpdateLog::create([
+                'license_id' => $license->id,
+                'plugin_slug' => $pluginSlug,
+                'to_version' => $toVersion,
+                'status' => UpdateLog::STATUS_ERROR,
+                'error_message' => $errorMessage,
+                'error_type' => $errorType,
+                'health_check_passed' => $healthCheckPassed ? 1 : 0,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+        
+        // Atualiza status na licença
+        License::update($license->id, [
+            'update_status' => 'error',
+            'update_status_at' => date('Y-m-d H:i:s'),
+            'last_error_message' => $errorMessage
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Erro registrado'
+        ]);
+    }
+    
+    /**
+     * Registra rollback de uma atualização
+     * POST /api/v1/update/rollback
+     */
+    public function updateRollback() {
+        $licenseKey = $this->getInput('license_key');
+        $logId = $this->getInput('log_id');
+        $pluginSlug = $this->getInput('plugin_slug');
+        $fromVersion = $this->getInput('from_version');
+        $toVersion = $this->getInput('to_version');
+        $errorMessage = $this->getInput('error_message');
+        $automatic = $this->getInput('automatic', true);
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Dados incompletos'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Atualiza log se existir
+        if ($logId) {
+            UpdateLog::update($logId, [
+                'status' => UpdateLog::STATUS_ROLLBACK,
+                'error_message' => $errorMessage,
+                'rollback_performed' => 1,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        } else if ($pluginSlug) {
+            // Cria novo log de rollback
+            UpdateLog::create([
+                'license_id' => $license->id,
+                'plugin_slug' => $pluginSlug,
+                'from_version' => $toVersion, // Voltou para...
+                'to_version' => $fromVersion, // ...a versão anterior
+                'status' => UpdateLog::STATUS_ROLLBACK,
+                'error_message' => $errorMessage ?? 'Rollback ' . ($automatic ? 'automático' : 'manual'),
+                'rollback_performed' => 1,
+                'completed_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+        
+        // Atualiza status na licença
+        License::update($license->id, [
+            'update_status' => 'rollback',
+            'update_status_at' => date('Y-m-d H:i:s'),
+            'last_error_message' => $errorMessage ?? 'Rollback realizado'
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Rollback registrado'
+        ]);
     }
 }

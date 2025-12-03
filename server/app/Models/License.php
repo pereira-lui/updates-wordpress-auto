@@ -73,6 +73,11 @@ class License {
             $params[] = $filters['period'];
         }
         
+        if (!empty($filters['update_status'])) {
+            $sql .= " AND update_status = ?";
+            $params[] = $filters['update_status'];
+        }
+        
         if (!empty($filters['search'])) {
             $sql .= " AND (client_name LIKE ? OR client_email LIKE ? OR license_key LIKE ? OR site_url LIKE ?)";
             $search = '%' . $filters['search'] . '%';

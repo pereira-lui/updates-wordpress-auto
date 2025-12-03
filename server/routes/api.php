@@ -47,6 +47,12 @@ Router::group(['prefix' => '/api/v1'], function() {
     Router::post('/my/updates', 'Api\UpdateController@myUpdates');
     Router::post('/my/log-update', 'Api\UpdateController@logUpdate');
     
+    // API de Status de Atualização (Safe Updater)
+    Router::post('/update/started', 'Api\UpdateController@updateStarted');
+    Router::post('/update/success', 'Api\UpdateController@updateSuccess');
+    Router::post('/update/error', 'Api\UpdateController@updateError');
+    Router::post('/update/rollback', 'Api\UpdateController@updateRollback');
+    
     // Webhook do Asaas
     Router::post('/webhook/asaas', 'Api\WebhookController@asaas');
 });

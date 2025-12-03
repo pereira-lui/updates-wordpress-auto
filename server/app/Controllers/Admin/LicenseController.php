@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Core\Controller;
+use App\Core\Database;
 use App\Models\License;
 use App\Models\ActivityLog;
 
@@ -18,15 +19,42 @@ class LicenseController extends Controller {
         $filters = [
             'status' => $_GET['status'] ?? '',
             'period' => $_GET['period'] ?? '',
-            'search' => $_GET['search'] ?? ''
+            'search' => $_GET['search'] ?? '',
+            'update_status' => $_GET['update_status'] ?? ''
         ];
         
         $licenses = License::all($filters);
         
+        // Estatísticas de status de atualização
+        $updateStats = $this->getUpdateStats();
+        
         return $this->view('admin/licenses/index', [
             'licenses' => $licenses,
-            'filters' => $filters
+            'filters' => $filters,
+            'updateStats' => $updateStats
         ]);
+    }
+    
+    /**
+     * Retorna estatísticas de atualização
+     */
+    private function getUpdateStats() {
+        $stats = Database::selectOne(
+            "SELECT 
+                SUM(CASE WHEN update_status = 'ok' THEN 1 ELSE 0 END) as ok,
+                SUM(CASE WHEN update_status = 'error' THEN 1 ELSE 0 END) as error,
+                SUM(CASE WHEN update_status = 'rollback' THEN 1 ELSE 0 END) as rollback,
+                SUM(CASE WHEN update_status = 'pending' THEN 1 ELSE 0 END) as pending
+             FROM licenses 
+             WHERE status = 'active'"
+        );
+        
+        return [
+            'ok' => $stats->ok ?? 0,
+            'error' => $stats->error ?? 0,
+            'rollback' => $stats->rollback ?? 0,
+            'pending' => $stats->pending ?? 0
+        ];
     }
     
     /**
@@ -40,8 +68,20 @@ class LicenseController extends Controller {
             redirect('/admin/licenses');
         }
         
+        // Busca histórico de atualizações
+        $updateLogs = Database::select(
+            "SELECT ul.*, p.name as plugin_name 
+             FROM update_logs ul
+             LEFT JOIN plugins p ON ul.plugin_slug = p.slug
+             WHERE ul.license_id = ?
+             ORDER BY ul.created_at DESC
+             LIMIT 20",
+            [$id]
+        );
+        
         return $this->view('admin/licenses/show', [
-            'license' => $license
+            'license' => $license,
+            'updateLogs' => $updateLogs
         ]);
     }
     

@@ -128,6 +128,9 @@ class PUC_Safe_Updater {
         // Obtém versão atual
         $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin_file);
         $current_version = $plugin_data['Version'] ?? 'unknown';
+        
+        // Obtém versão para a qual está atualizando
+        $to_version = $this->get_updating_version($plugin_slug);
 
         // Cria backup
         $backup_result = $this->create_backup($plugin_slug, $current_version);
@@ -142,12 +145,35 @@ class PUC_Safe_Updater {
             set_transient('puc_current_backup_' . $plugin_slug, array(
                 'path' => $backup_result,
                 'version' => $current_version,
+                'to_version' => $to_version,
                 'plugin_file' => $plugin_file,
                 'created_at' => time()
             ), HOUR_IN_SECONDS);
+            
+            // Notifica servidor que a atualização iniciou
+            $this->report_update_started($plugin_slug, $current_version, $to_version);
         }
 
         return $response;
+    }
+    
+    /**
+     * Obtém a versão para a qual está atualizando
+     */
+    private function get_updating_version($plugin_slug) {
+        $update_plugins = get_site_transient('update_plugins');
+        
+        if (!$update_plugins) {
+            return 'unknown';
+        }
+        
+        foreach ($update_plugins->response as $file => $plugin) {
+            if (strpos($file, $plugin_slug . '/') === 0) {
+                return $plugin->new_version ?? 'unknown';
+            }
+        }
+        
+        return 'unknown';
     }
 
     /**
@@ -190,6 +216,15 @@ class PUC_Safe_Updater {
                 if ($rollback_result['success']) {
                     $this->log("Rollback concluído com sucesso para {$plugin_slug}");
                     
+                    // Notifica servidor sobre o rollback
+                    $this->report_update_rollback(
+                        $plugin_slug, 
+                        $backup_info['version'], 
+                        $backup_info['to_version'] ?? 'unknown',
+                        $health_result['message'],
+                        true // automático
+                    );
+                    
                     // Notifica o admin
                     $this->send_rollback_notification($plugin_slug, $backup_info['version'], $health_result['message']);
                     
@@ -204,12 +239,36 @@ class PUC_Safe_Updater {
                 } else {
                     $this->log("Falha no rollback para {$plugin_slug}: " . $rollback_result['message']);
                     
+                    // Notifica servidor sobre erro no rollback
+                    $this->report_update_error(
+                        $plugin_slug,
+                        $backup_info['to_version'] ?? 'unknown',
+                        'Rollback também falhou: ' . $rollback_result['message'],
+                        'rollback_failed'
+                    );
+                    
                     // Notifica erro crítico
                     $this->send_critical_error_notification($plugin_slug, $rollback_result['message']);
                 }
+            } else {
+                // Não tinha backup, reporta erro
+                $this->report_update_error(
+                    $plugin_slug,
+                    'unknown',
+                    $health_result['message'],
+                    'health_check_failed'
+                );
             }
         } else {
             $this->log("Health check passou após atualização de {$plugin_slug}");
+            
+            // Notifica servidor sobre sucesso
+            $backup_info = get_transient('puc_current_backup_' . $plugin_slug);
+            $this->report_update_success(
+                $plugin_slug,
+                $backup_info['to_version'] ?? 'unknown',
+                true // health check passou
+            );
         }
 
         // Limpa transient do backup atual
@@ -860,6 +919,15 @@ class PUC_Safe_Updater {
         $result = $this->perform_rollback($meta['plugin_slug'], $backup_path);
 
         if ($result['success']) {
+            // Reporta rollback manual ao servidor
+            $this->report_update_rollback(
+                $meta['plugin_slug'],
+                $meta['version'],
+                'manual',
+                'Rollback manual executado pelo administrador',
+                false // manual
+            );
+            
             wp_send_json_success(array(
                 'message' => sprintf(
                     __('Plugin %s restaurado para versão %s', 'premium-updates-client'),
@@ -941,6 +1009,99 @@ class PUC_Safe_Updater {
             $lines = array_slice($lines, -500); // Mantém últimas 500 linhas
             file_put_contents($log_file, implode('', $lines));
         }
+    }
+    
+    /**
+     * Reporta início de atualização ao servidor
+     */
+    private function report_update_started($plugin_slug, $from_version, $to_version) {
+        $this->send_update_status('update/started', array(
+            'plugin_slug' => $plugin_slug,
+            'from_version' => $from_version,
+            'to_version' => $to_version,
+            'site_url' => home_url('/'),
+            'wp_version' => get_bloginfo('version'),
+            'php_version' => PHP_VERSION
+        ));
+    }
+    
+    /**
+     * Reporta sucesso de atualização ao servidor
+     */
+    private function report_update_success($plugin_slug, $to_version, $health_check_passed = true) {
+        $this->send_update_status('update/success', array(
+            'plugin_slug' => $plugin_slug,
+            'to_version' => $to_version,
+            'health_check_passed' => $health_check_passed
+        ));
+    }
+    
+    /**
+     * Reporta erro de atualização ao servidor
+     */
+    private function report_update_error($plugin_slug, $to_version, $error_message, $error_type = 'unknown') {
+        $this->send_update_status('update/error', array(
+            'plugin_slug' => $plugin_slug,
+            'to_version' => $to_version,
+            'error_message' => $error_message,
+            'error_type' => $error_type,
+            'health_check_passed' => false
+        ));
+    }
+    
+    /**
+     * Reporta rollback ao servidor
+     */
+    private function report_update_rollback($plugin_slug, $from_version, $to_version, $error_message, $automatic = true) {
+        $this->send_update_status('update/rollback', array(
+            'plugin_slug' => $plugin_slug,
+            'from_version' => $from_version,
+            'to_version' => $to_version,
+            'error_message' => $error_message,
+            'automatic' => $automatic
+        ));
+    }
+    
+    /**
+     * Envia status de atualização para o servidor
+     */
+    private function send_update_status($endpoint, $data) {
+        $server_url = get_option('puc_server_url', '');
+        $license_key = get_option('puc_license_key', '');
+        
+        if (empty($server_url) || empty($license_key)) {
+            $this->log('Não foi possível reportar status: configuração incompleta');
+            return false;
+        }
+        
+        $url = rtrim($server_url, '/') . '/api/v1/' . $endpoint;
+        
+        $data['license_key'] = $license_key;
+        $data['site_url'] = home_url('/');
+        
+        $response = wp_remote_post($url, array(
+            'timeout' => 15,
+            'sslverify' => false,
+            'headers' => array(
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($data)
+        ));
+        
+        if (is_wp_error($response)) {
+            $this->log('Erro ao reportar status ao servidor: ' . $response->get_error_message());
+            return false;
+        }
+        
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        
+        if (isset($body['success']) && $body['success']) {
+            $this->log('Status reportado ao servidor: ' . $endpoint);
+            return true;
+        }
+        
+        $this->log('Servidor rejeitou status: ' . ($body['message'] ?? 'erro desconhecido'));
+        return false;
     }
 
     /**

@@ -1,5 +1,45 @@
 <?php $this->layout('layouts/admin', ['title' => 'Licenças']); ?>
 
+<!-- Cards de Status de Atualização -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-success h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                <h3 class="mb-0 mt-2"><?= $updateStats['ok'] ?? 0 ?></h3>
+                <small class="text-muted">Clientes OK</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-x-circle-fill text-danger fs-1"></i>
+                <h3 class="mb-0 mt-2"><?= $updateStats['error'] ?? 0 ?></h3>
+                <small class="text-muted">Com Erros</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-counterclockwise text-warning fs-1"></i>
+                <h3 class="mb-0 mt-2"><?= $updateStats['rollback'] ?? 0 ?></h3>
+                <small class="text-muted">Rollbacks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-hourglass-split text-info fs-1"></i>
+                <h3 class="mb-0 mt-2"><?= $updateStats['pending'] ?? 0 ?></h3>
+                <small class="text-muted">Pendentes</small>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex gap-2">
         <a href="<?= url('/admin/licenses/friend') ?>" class="btn btn-outline-pink">
@@ -12,16 +52,25 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <select name="update_status" class="form-select">
+                    <option value="">Status Update</option>
+                    <option value="ok" <?= ($filters['update_status'] ?? '') === 'ok' ? 'selected' : '' ?>>✅ OK</option>
+                    <option value="error" <?= ($filters['update_status'] ?? '') === 'error' ? 'selected' : '' ?>>❌ Erro</option>
+                    <option value="rollback" <?= ($filters['update_status'] ?? '') === 'rollback' ? 'selected' : '' ?>>↩️ Rollback</option>
+                    <option value="pending" <?= ($filters['update_status'] ?? '') === 'pending' ? 'selected' : '' ?>>⏳ Pendente</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <select name="status" class="form-select">
-                    <option value="">Todos os status</option>
+                    <option value="">Status Licença</option>
                     <option value="active" <?= ($filters['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativa</option>
                     <option value="pending" <?= ($filters['status'] ?? '') === 'pending' ? 'selected' : '' ?>>Pendente</option>
                     <option value="expired" <?= ($filters['status'] ?? '') === 'expired' ? 'selected' : '' ?>>Expirada</option>
                     <option value="cancelled" <?= ($filters['status'] ?? '') === 'cancelled' ? 'selected' : '' ?>>Cancelada</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <select name="period" class="form-select">
                     <option value="">Todos os períodos</option>
                     <option value="monthly" <?= ($filters['period'] ?? '') === 'monthly' ? 'selected' : '' ?>>Mensal</option>
@@ -50,6 +99,7 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
+                        <th>Status Update</th>
                         <th>Cliente / Site</th>
                         <th>Chave</th>
                         <th>Período</th>
@@ -61,7 +111,7 @@
                 <tbody>
                     <?php if (empty($licenses)): ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
+                            <td colspan="7" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 Nenhuma licença encontrada
                                 <p class="small mt-2">As licenças são criadas automaticamente quando os clientes pagam pelo plugin.</p>
@@ -69,12 +119,31 @@
                         </tr>
                     <?php else: ?>
                         <?php foreach ($licenses as $license): ?>
-                            <tr>
+                            <tr class="<?= $license->update_status === 'error' ? 'table-danger' : ($license->update_status === 'rollback' ? 'table-warning' : '') ?>">
+                                <td class="text-center">
+                                    <?php
+                                    $updateStatusIcons = [
+                                        'ok' => '<span class="badge bg-success" title="Última atualização OK"><i class="bi bi-check-circle"></i> OK</span>',
+                                        'error' => '<span class="badge bg-danger" title="Erro na última atualização"><i class="bi bi-x-circle"></i> Erro</span>',
+                                        'rollback' => '<span class="badge bg-warning text-dark" title="Rollback realizado"><i class="bi bi-arrow-counterclockwise"></i> Rollback</span>',
+                                        'pending' => '<span class="badge bg-info" title="Atualização em andamento"><i class="bi bi-hourglass-split"></i> Atualizando</span>',
+                                    ];
+                                    echo $updateStatusIcons[$license->update_status] ?? '<span class="text-muted">-</span>';
+                                    ?>
+                                    <?php if ($license->update_status_at): ?>
+                                        <br><small class="text-muted"><?= date('d/m H:i', strtotime($license->update_status_at)) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <div class="fw-medium"><?= htmlspecialchars($license->client_name) ?></div>
                                     <small class="text-muted"><?= htmlspecialchars($license->client_email) ?></small>
                                     <?php if ($license->site_url): ?>
                                         <br><small class="text-info"><i class="bi bi-globe"></i> <?= htmlspecialchars($license->site_url) ?></small>
+                                    <?php endif; ?>
+                                    <?php if ($license->last_error_message): ?>
+                                        <br><small class="text-danger" title="<?= htmlspecialchars($license->last_error_message) ?>">
+                                            <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars(substr($license->last_error_message, 0, 50)) ?>...
+                                        </small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
