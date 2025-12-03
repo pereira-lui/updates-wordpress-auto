@@ -30,6 +30,9 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     // Plugins
     Router::get('/plugins', 'Admin\PluginController@index');
     Router::post('/plugins/upload', 'Admin\PluginController@upload');
+    Router::get('/plugins/{id}/versions', 'Admin\PluginController@versions');
+    Router::post('/plugins/{id}/restore-version', 'Admin\PluginController@restoreVersion');
+    Router::post('/plugins/{id}/delete-version', 'Admin\PluginController@deleteVersion');
     Router::post('/plugins/{id}/toggle', 'Admin\PluginController@toggle');
     Router::post('/plugins/{id}/delete', 'Admin\PluginController@destroy');
     

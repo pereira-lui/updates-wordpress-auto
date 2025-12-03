@@ -235,7 +235,7 @@ class PluginController extends Controller {
     }
     
     /**
-     * Salva o arquivo ZIP do plugin
+     * Salva o arquivo ZIP do plugin (mantém versões anteriores)
      */
     private function saveZipFile($id, $slug, $file, $version) {
         $uploadDir = STORAGE_PATH . '/plugins/' . $slug;
@@ -246,21 +246,211 @@ class PluginController extends Controller {
             }
         }
         
-        // Remove arquivos antigos
-        $files = glob($uploadDir . '/*.zip');
-        foreach ($files as $oldFile) {
-            unlink($oldFile);
+        // Cria diretório de versões anteriores se não existir
+        $versionsDir = $uploadDir . '/versions';
+        if (!is_dir($versionsDir)) {
+            mkdir($versionsDir, 0755, true);
         }
         
+        // Move versão atual para o diretório de versões (se existir)
+        $currentFiles = glob($uploadDir . '/*.zip');
+        foreach ($currentFiles as $currentFile) {
+            $filename = basename($currentFile);
+            // Não mover se já existe nas versões
+            if (!file_exists($versionsDir . '/' . $filename)) {
+                rename($currentFile, $versionsDir . '/' . $filename);
+            } else {
+                // Remove duplicata
+                unlink($currentFile);
+            }
+        }
+        
+        // Salva nova versão
         $filename = $slug . '-' . $version . '.zip';
         $destination = $uploadDir . '/' . $filename;
         
         if (move_uploaded_file($file['tmp_name'], $destination)) {
             Plugin::update($id, ['zip_file' => $filename]);
+            
+            // Salva também no histórico de versões
+            $this->saveVersionHistory($id, $version, $filename);
+            
             return ['success' => true, 'filename' => $filename];
         }
         
         return ['success' => false, 'message' => 'Erro ao mover arquivo'];
+    }
+    
+    /**
+     * Salva histórico de versão no banco de dados
+     */
+    private function saveVersionHistory($pluginId, $version, $filename) {
+        $db = \App\Core\Database::getInstance();
+        
+        // Verifica se a versão já existe no histórico
+        $existing = $db->query(
+            "SELECT id FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+            [$pluginId, $version]
+        )->fetch();
+        
+        if (!$existing) {
+            $db->query(
+                "INSERT INTO plugin_versions (plugin_id, version, zip_file, created_at) VALUES (?, ?, ?, NOW())",
+                [$pluginId, $version, $filename]
+            );
+        }
+    }
+    
+    /**
+     * Lista versões de um plugin
+     */
+    public function versions($id) {
+        $plugin = Plugin::find($id);
+        
+        if (!$plugin) {
+            return $this->json(['success' => false, 'message' => 'Plugin não encontrado']);
+        }
+        
+        $db = \App\Core\Database::getInstance();
+        $versions = $db->query(
+            "SELECT * FROM plugin_versions WHERE plugin_id = ? ORDER BY created_at DESC",
+            [$id]
+        )->fetchAll();
+        
+        // Também lista arquivos físicos na pasta versions
+        $versionsDir = STORAGE_PATH . '/plugins/' . $plugin->slug . '/versions';
+        $physicalVersions = [];
+        
+        if (is_dir($versionsDir)) {
+            $files = glob($versionsDir . '/*.zip');
+            foreach ($files as $file) {
+                $filename = basename($file);
+                // Extrai versão do nome do arquivo (slug-version.zip)
+                if (preg_match('/-(\d+\.\d+\.\d+)\.zip$/', $filename, $matches)) {
+                    $physicalVersions[] = [
+                        'version' => $matches[1],
+                        'filename' => $filename,
+                        'size' => filesize($file),
+                        'date' => date('Y-m-d H:i:s', filemtime($file))
+                    ];
+                }
+            }
+        }
+        
+        return $this->json([
+            'success' => true,
+            'plugin' => $plugin,
+            'versions' => $versions,
+            'physical_versions' => $physicalVersions
+        ]);
+    }
+    
+    /**
+     * Restaura uma versão anterior do plugin
+     */
+    public function restoreVersion($id) {
+        if (!verify_csrf($_POST['_token'] ?? '')) {
+            return $this->json(['success' => false, 'message' => 'Token inválido']);
+        }
+        
+        $version = $_POST['version'] ?? '';
+        
+        if (empty($version)) {
+            return $this->json(['success' => false, 'message' => 'Versão não especificada']);
+        }
+        
+        $plugin = Plugin::find($id);
+        
+        if (!$plugin) {
+            return $this->json(['success' => false, 'message' => 'Plugin não encontrado']);
+        }
+        
+        $uploadDir = STORAGE_PATH . '/plugins/' . $plugin->slug;
+        $versionsDir = $uploadDir . '/versions';
+        $versionFile = $versionsDir . '/' . $plugin->slug . '-' . $version . '.zip';
+        
+        if (!file_exists($versionFile)) {
+            return $this->json(['success' => false, 'message' => 'Arquivo da versão não encontrado']);
+        }
+        
+        // Move versão atual para versions
+        $currentFile = $uploadDir . '/' . $plugin->zip_file;
+        if (file_exists($currentFile) && !file_exists($versionsDir . '/' . $plugin->zip_file)) {
+            rename($currentFile, $versionsDir . '/' . $plugin->zip_file);
+        }
+        
+        // Copia versão restaurada para diretório principal
+        $newFilename = $plugin->slug . '-' . $version . '.zip';
+        copy($versionFile, $uploadDir . '/' . $newFilename);
+        
+        // Atualiza plugin no banco
+        Plugin::update($id, [
+            'version' => $version,
+            'zip_file' => $newFilename
+        ]);
+        
+        ActivityLog::admin('Versão do plugin restaurada', [
+            'plugin_id' => $id,
+            'plugin_name' => $plugin->name,
+            'restored_version' => $version,
+            'previous_version' => $plugin->version
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => "Plugin restaurado para versão {$version}!"
+        ]);
+    }
+    
+    /**
+     * Exclui uma versão específica
+     */
+    public function deleteVersion($id) {
+        if (!verify_csrf($_POST['_token'] ?? '')) {
+            return $this->json(['success' => false, 'message' => 'Token inválido']);
+        }
+        
+        $version = $_POST['version'] ?? '';
+        
+        if (empty($version)) {
+            return $this->json(['success' => false, 'message' => 'Versão não especificada']);
+        }
+        
+        $plugin = Plugin::find($id);
+        
+        if (!$plugin) {
+            return $this->json(['success' => false, 'message' => 'Plugin não encontrado']);
+        }
+        
+        // Não permite excluir versão atual
+        if ($plugin->version === $version) {
+            return $this->json(['success' => false, 'message' => 'Não é possível excluir a versão atual']);
+        }
+        
+        $versionsDir = STORAGE_PATH . '/plugins/' . $plugin->slug . '/versions';
+        $versionFile = $versionsDir . '/' . $plugin->slug . '-' . $version . '.zip';
+        
+        if (file_exists($versionFile)) {
+            unlink($versionFile);
+        }
+        
+        // Remove do banco
+        $db = \App\Core\Database::getInstance();
+        $db->query(
+            "DELETE FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+            [$id, $version]
+        );
+        
+        ActivityLog::admin('Versão do plugin excluída', [
+            'plugin_id' => $id,
+            'plugin_name' => $plugin->name,
+            'deleted_version' => $version
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => "Versão {$version} excluída!"
+        ]);
     }
     
     /**

@@ -81,6 +81,9 @@
                     </div>
                     <div class="card-footer bg-transparent">
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-info view-versions" data-id="<?= $plugin->id ?>" data-name="<?= htmlspecialchars($plugin->name) ?>" title="Ver versões">
+                                <i class="bi bi-clock-history"></i>
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-primary flex-fill update-plugin" data-id="<?= $plugin->id ?>" data-slug="<?= htmlspecialchars($plugin->slug) ?>">
                                 <i class="bi bi-cloud-upload"></i> Atualizar
                             </button>
@@ -116,6 +119,53 @@
                     <input type="hidden" name="_token" value="<?= csrf_token() ?>">
                     <button type="submit" class="btn btn-danger">Excluir</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de versões -->
+<div class="modal fade" id="versionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Versões: <span id="versionsPluginName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="versionsLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Carregando versões...</p>
+                </div>
+                <div id="versionsContent" class="d-none">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        O sistema mantém automaticamente todas as versões anteriores dos plugins.
+                    </div>
+                    
+                    <div id="versionsEmpty" class="text-center py-4 d-none">
+                        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+                        <p class="text-muted">Nenhuma versão anterior encontrada.</p>
+                    </div>
+                    
+                    <table id="versionsTable" class="table table-hover d-none">
+                        <thead>
+                            <tr>
+                                <th>Versão</th>
+                                <th>Arquivo</th>
+                                <th>Data</th>
+                                <th>Tamanho</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="versionsTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -261,5 +311,187 @@ document.querySelectorAll('.delete-plugin').forEach(btn => {
         deleteModal.show();
     });
 });
+
+// View versions
+const versionsModal = new bootstrap.Modal(document.getElementById('versionsModal'));
+let currentVersionsPluginId = null;
+
+document.querySelectorAll('.view-versions').forEach(btn => {
+    btn.addEventListener('click', () => {
+        currentVersionsPluginId = btn.dataset.id;
+        document.getElementById('versionsPluginName').textContent = btn.dataset.name;
+        loadVersions(btn.dataset.id);
+        versionsModal.show();
+    });
+});
+
+async function loadVersions(pluginId) {
+    const loading = document.getElementById('versionsLoading');
+    const content = document.getElementById('versionsContent');
+    const table = document.getElementById('versionsTable');
+    const tbody = document.getElementById('versionsTableBody');
+    const empty = document.getElementById('versionsEmpty');
+    
+    loading.classList.remove('d-none');
+    content.classList.add('d-none');
+    
+    try {
+        const res = await fetch(`<?= url('/admin/plugins') ?>/${pluginId}/versions`);
+        const data = await res.json();
+        
+        loading.classList.add('d-none');
+        content.classList.remove('d-none');
+        
+        if (data.success) {
+            const plugin = data.plugin;
+            const versions = data.physical_versions || [];
+            
+            // Adiciona versão atual no topo
+            const allVersions = [
+                {
+                    version: plugin.version,
+                    filename: plugin.zip_file,
+                    date: plugin.updated_at,
+                    size: null,
+                    is_current: true
+                },
+                ...versions.filter(v => v.version !== plugin.version).map(v => ({
+                    ...v,
+                    is_current: false
+                }))
+            ];
+            
+            if (allVersions.length === 0) {
+                table.classList.add('d-none');
+                empty.classList.remove('d-none');
+            } else {
+                empty.classList.add('d-none');
+                table.classList.remove('d-none');
+                
+                tbody.innerHTML = allVersions.map(v => `
+                    <tr>
+                        <td>
+                            <strong>v${escapeHtml(v.version)}</strong>
+                            ${v.is_current ? '<span class="badge bg-primary ms-2">Atual</span>' : ''}
+                        </td>
+                        <td><code class="small">${escapeHtml(v.filename || '-')}</code></td>
+                        <td>${v.date ? formatDate(v.date) : '-'}</td>
+                        <td>${v.size ? formatBytes(v.size) : '-'}</td>
+                        <td class="text-end">
+                            ${!v.is_current ? `
+                                <button type="button" class="btn btn-sm btn-outline-success restore-version" 
+                                        data-version="${escapeHtml(v.version)}" title="Restaurar esta versão">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-version" 
+                                        data-version="${escapeHtml(v.version)}" title="Excluir esta versão">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            ` : '<span class="text-muted small">Versão ativa</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+                
+                // Bind events
+                bindVersionActions();
+            }
+        } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-danger">${data.message || 'Erro ao carregar'}</td></tr>`;
+            table.classList.remove('d-none');
+        }
+    } catch (e) {
+        loading.classList.add('d-none');
+        content.classList.remove('d-none');
+        document.getElementById('versionsTableBody').innerHTML = '<tr><td colspan="5" class="text-danger">Erro de conexão</td></tr>';
+        document.getElementById('versionsTable').classList.remove('d-none');
+    }
+}
+
+function bindVersionActions() {
+    // Restore version
+    document.querySelectorAll('.restore-version').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const version = btn.dataset.version;
+            if (!confirm(`Restaurar versão ${version}? A versão atual será movida para o histórico.`)) return;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            try {
+                const res = await fetch(`<?= url('/admin/plugins') ?>/${currentVersionsPluginId}/restore-version`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `_token=<?= csrf_token() ?>&version=${encodeURIComponent(version)}`
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Erro: ' + (data.message || 'Falha ao restaurar'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar';
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar';
+            }
+        });
+    });
+    
+    // Delete version
+    document.querySelectorAll('.delete-version').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const version = btn.dataset.version;
+            if (!confirm(`Excluir permanentemente a versão ${version}?`)) return;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            try {
+                const res = await fetch(`<?= url('/admin/plugins') ?>/${currentVersionsPluginId}/delete-version`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `_token=<?= csrf_token() ?>&version=${encodeURIComponent(version)}`
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    btn.closest('tr').remove();
+                } else {
+                    alert('Erro: ' + (data.message || 'Falha ao excluir'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-trash"></i>';
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i>';
+            }
+        });
+    });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return '-';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+}
 </script>
 <?php $this->endSection(); ?>
