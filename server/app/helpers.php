@@ -240,3 +240,37 @@ function sanitize_slug($text) {
 function slugify($text) {
     return sanitize_slug($text);
 }
+
+/**
+ * Retorna configuração do settings.json
+ */
+function get_setting($key, $default = null) {
+    static $settings = null;
+    
+    if ($settings === null) {
+        $file = config('app.storage_path') . '/settings.json';
+        if (file_exists($file)) {
+            $settings = json_decode(file_get_contents($file), true) ?: [];
+        } else {
+            $settings = [];
+        }
+    }
+    
+    return $settings[$key] ?? $default;
+}
+
+/**
+ * Salva configuração no settings.json
+ */
+function set_setting($key, $value) {
+    $file = config('app.storage_path') . '/settings.json';
+    
+    $settings = [];
+    if (file_exists($file)) {
+        $settings = json_decode(file_get_contents($file), true) ?: [];
+    }
+    
+    $settings[$key] = $value;
+    
+    file_put_contents($file, json_encode($settings, JSON_PRETTY_PRINT));
+}

@@ -45,6 +45,7 @@ Router::group(['prefix' => '/admin', 'middleware' => 'Auth'], function() {
     // Configurações
     Router::get('/settings', 'Admin\SettingsController@index');
     Router::post('/settings', 'Admin\SettingsController@update');
+    Router::post('/settings/test-smtp', 'Admin\SettingsController@testSmtp');
     Router::get('/settings/profile', 'Admin\SettingsController@profile');
     Router::post('/settings/profile', 'Admin\SettingsController@updateProfile');
     Router::get('/settings/users', 'Admin\SettingsController@users');

@@ -20,6 +20,7 @@ $has_license = !empty($license_key) && !empty($server_url);
         <a href="#tab-account" class="nav-tab" data-tab="account"><?php _e('Minha Conta', 'premium-updates-client'); ?></a>
         <a href="#tab-payments" class="nav-tab" data-tab="payments"><?php _e('Pagamentos', 'premium-updates-client'); ?></a>
         <a href="#tab-updates-history" class="nav-tab" data-tab="updates-history"><?php _e('Histórico de Atualizações', 'premium-updates-client'); ?></a>
+        <a href="#tab-notifications" class="nav-tab" data-tab="notifications"><?php _e('Notificações', 'premium-updates-client'); ?></a>
         <?php endif; ?>
         <a href="#tab-backups" class="nav-tab" data-tab="backups"><?php _e('Backups & Rollback', 'premium-updates-client'); ?></a>
     </nav>
@@ -478,6 +479,92 @@ $has_license = !empty($license_key) && !empty($server_url);
             </div>
             
             <div id="puc-updates-error" class="notice notice-error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Tab: Notificações -->
+    <div id="tab-notifications" class="puc-tab-content">
+        <div class="puc-section">
+            <h2><?php _e('Notificações por Email', 'premium-updates-client'); ?></h2>
+            
+            <div id="puc-notifications-loading" class="puc-loading-container">
+                <span class="spinner is-active" style="float: none;"></span>
+                <p><?php _e('Carregando configurações...', 'premium-updates-client'); ?></p>
+            </div>
+            
+            <div id="puc-notifications-content" style="display: none;">
+                <div class="puc-info-box puc-info-notifications">
+                    <span class="dashicons dashicons-email-alt"></span>
+                    <p><?php _e('Configure quando e para qual email você deseja receber notificações sobre suas atualizações de plugins.', 'premium-updates-client'); ?></p>
+                </div>
+                
+                <form id="puc-notifications-form">
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="puc-notification-email"><?php _e('Email para Notificações', 'premium-updates-client'); ?></label>
+                            </th>
+                            <td>
+                                <input type="email" id="puc-notification-email" name="notification_email" class="regular-text" 
+                                    placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+                                <p class="description"><?php _e('Deixe em branco para usar o email do administrador do site.', 'premium-updates-client'); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><?php _e('Receber Notificações', 'premium-updates-client'); ?></th>
+                            <td>
+                                <fieldset>
+                                    <label>
+                                        <input type="checkbox" id="puc-notify-update" name="notify_on_update" value="1">
+                                        <?php _e('Quando uma atualização for aplicada com sucesso', 'premium-updates-client'); ?>
+                                    </label>
+                                    <br>
+                                    <label>
+                                        <input type="checkbox" id="puc-notify-error" name="notify_on_error" value="1">
+                                        <?php _e('Quando ocorrer um erro durante a atualização', 'premium-updates-client'); ?>
+                                        <span class="puc-badge puc-badge-warning"><?php _e('Recomendado', 'premium-updates-client'); ?></span>
+                                    </label>
+                                    <br>
+                                    <label>
+                                        <input type="checkbox" id="puc-notify-rollback" name="notify_on_rollback" value="1">
+                                        <?php _e('Quando um rollback for executado', 'premium-updates-client'); ?>
+                                        <span class="puc-badge puc-badge-warning"><?php _e('Recomendado', 'premium-updates-client'); ?></span>
+                                    </label>
+                                </fieldset>
+                                <p class="description"><?php _e('Selecione os eventos para os quais você deseja receber notificações.', 'premium-updates-client'); ?></p>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <p class="submit">
+                        <button type="submit" class="button button-primary" id="puc-save-notifications">
+                            <span class="dashicons dashicons-saved"></span> <?php _e('Salvar Preferências', 'premium-updates-client'); ?>
+                        </button>
+                        <span id="puc-notifications-status" class="puc-save-status"></span>
+                    </p>
+                </form>
+                
+                <!-- Histórico de Notificações Recentes -->
+                <div class="puc-subsection" style="margin-top: 30px;">
+                    <h3><?php _e('Informações', 'premium-updates-client'); ?></h3>
+                    <div class="puc-notification-info">
+                        <table class="widefat">
+                            <tbody>
+                                <tr>
+                                    <th><?php _e('Email Atual', 'premium-updates-client'); ?></th>
+                                    <td id="puc-current-notification-email">-</td>
+                                </tr>
+                                <tr>
+                                    <th><?php _e('Notificações Ativas', 'premium-updates-client'); ?></th>
+                                    <td id="puc-active-notifications">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="puc-notifications-error" class="notice notice-error" style="display: none;"></div>
         </div>
     </div>
     <?php endif; ?>

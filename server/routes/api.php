@@ -53,6 +53,10 @@ Router::group(['prefix' => '/api/v1'], function() {
     Router::post('/update/error', 'Api\UpdateController@updateError');
     Router::post('/update/rollback', 'Api\UpdateController@updateRollback');
     
+    // API de Preferências de Notificação
+    Router::get('/notifications/preferences', 'Api\UpdateController@getNotificationPreferences');
+    Router::post('/notifications/preferences', 'Api\UpdateController@saveNotificationPreferences');
+    
     // Webhook do Asaas
     Router::post('/webhook/asaas', 'Api\WebhookController@asaas');
 });

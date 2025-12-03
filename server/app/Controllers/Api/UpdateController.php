@@ -7,6 +7,7 @@ use App\Models\License;
 use App\Models\Plugin;
 use App\Models\ActivityLog;
 use App\Models\UpdateLog;
+use App\Services\EmailService;
 
 /**
  * Controller da API de Updates (para o plugin WordPress cliente)
@@ -781,6 +782,11 @@ class UpdateController extends Controller {
             'last_error_message' => null
         ]);
         
+        // Envia notificações por email
+        $this->sendUpdateNotifications($license, $pluginSlug ?: 'Plugin', 'success', [
+            'to_version' => $toVersion
+        ]);
+        
         return $this->json([
             'success' => true,
             'message' => 'Atualização concluída com sucesso'
@@ -844,6 +850,12 @@ class UpdateController extends Controller {
             'update_status' => 'error',
             'update_status_at' => date('Y-m-d H:i:s'),
             'last_error_message' => $errorMessage
+        ]);
+        
+        // Envia notificações por email
+        $this->sendUpdateNotifications($license, $pluginSlug ?: 'Plugin', 'error', [
+            'to_version' => $toVersion,
+            'error_message' => $errorMessage
         ]);
         
         return $this->json([
@@ -910,9 +922,126 @@ class UpdateController extends Controller {
             'last_error_message' => $errorMessage ?? 'Rollback realizado'
         ]);
         
+        // Envia notificações por email
+        $this->sendUpdateNotifications($license, $pluginSlug ?: 'Plugin', 'rollback', [
+            'from_version' => $fromVersion,
+            'to_version' => $toVersion,
+            'error_message' => $errorMessage
+        ]);
+        
         return $this->json([
             'success' => true,
             'message' => 'Rollback registrado'
+        ]);
+    }
+    
+    /**
+     * Envia notificações de atualização por email
+     */
+    private function sendUpdateNotifications($license, $pluginSlug, $status, $details = []) {
+        try {
+            $emailService = EmailService::getInstance();
+            
+            if (!$emailService->isConfigured()) {
+                return;
+            }
+            
+            // Notifica admin
+            $emailService->notifyAdminUpdate($license, $pluginSlug, $status, $details);
+            
+            // Notifica cliente
+            $emailService->notifyClientUpdate($license, $pluginSlug, $status, $details);
+            
+        } catch (\Exception $e) {
+            // Silently fail - não bloqueia a API por erro de email
+        }
+    }
+    
+    /**
+     * Retorna preferências de notificação do cliente
+     * GET /api/v1/my/notifications
+     */
+    public function getNotificationPreferences() {
+        $licenseKey = $this->getInput('license_key');
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        return $this->json([
+            'success' => true,
+            'data' => [
+                'notification_email' => $license->notification_email ?: '',
+                'notify_on_update' => (int)($license->notify_on_update ?? 0),
+                'notify_on_error' => (int)($license->notify_on_error ?? 1),
+                'notify_on_rollback' => (int)($license->notify_on_rollback ?? 1)
+            ]
+        ]);
+    }
+    
+    /**
+     * Salva preferências de notificação do cliente
+     * POST /api/v1/my/notifications
+     */
+    public function setNotificationPreferences() {
+        $licenseKey = $this->getInput('license_key');
+        $notificationEmail = $this->getInput('notification_email', '');
+        $notifyOnUpdate = $this->getInput('notify_on_update', 0);
+        $notifyOnError = $this->getInput('notify_on_error', 1);
+        $notifyOnRollback = $this->getInput('notify_on_rollback', 1);
+        
+        if (empty($licenseKey)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Chave de licença não informada'
+            ], 400);
+        }
+        
+        $license = License::findByKey($licenseKey);
+        
+        if (!$license) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Licença não encontrada'
+            ], 404);
+        }
+        
+        // Valida email se informado
+        if ($notificationEmail && !filter_var($notificationEmail, FILTER_VALIDATE_EMAIL)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Email inválido'
+            ], 400);
+        }
+        
+        License::update($license->id, [
+            'notification_email' => $notificationEmail ?: null,
+            'notify_on_update' => $notifyOnUpdate ? 1 : 0,
+            'notify_on_error' => $notifyOnError ? 1 : 0,
+            'notify_on_rollback' => $notifyOnRollback ? 1 : 0
+        ]);
+        
+        return $this->json([
+            'success' => true,
+            'message' => 'Preferências salvas com sucesso',
+            'data' => [
+                'notification_email' => $notificationEmail ?: '',
+                'notify_on_update' => (int)$notifyOnUpdate,
+                'notify_on_error' => (int)$notifyOnError,
+                'notify_on_rollback' => (int)$notifyOnRollback
+            ]
         ]);
     }
 }

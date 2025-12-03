@@ -3,7 +3,7 @@
  * Plugin Name: Premium Updates Client
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
  * Description: Cliente para receber atualizações automáticas de plugins premium. Inclui sistema de assinatura integrado e rollback automático em caso de erros.
- * Version: 3.3.0
+ * Version: 3.4.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUC_VERSION', '3.3.0');
+define('PUC_VERSION', '3.4.0');
 define('PUC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -67,6 +67,8 @@ class Premium_Updates_Client {
         add_action('wp_ajax_puc_get_account', array($this, 'ajax_get_account'));
         add_action('wp_ajax_puc_get_payments', array($this, 'ajax_get_payments'));
         add_action('wp_ajax_puc_get_updates_history', array($this, 'ajax_get_updates_history'));
+        add_action('wp_ajax_puc_get_notification_preferences', array($this, 'ajax_get_notification_preferences'));
+        add_action('wp_ajax_puc_set_notification_preferences', array($this, 'ajax_set_notification_preferences'));
         
         // Hook para registrar atualizações de plugins
         add_action('upgrader_process_complete', array($this, 'log_plugin_update'), 10, 2);
@@ -151,6 +153,7 @@ class Premium_Updates_Client {
         wp_localize_script('puc-admin-script', 'pucAdmin', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('puc_admin_nonce'),
+            'adminEmail' => get_option('admin_email'),
             'strings' => array(
                 'testing' => __('Testando...', 'premium-updates-client'),
                 'syncing' => __('Sincronizando...', 'premium-updates-client'),
@@ -841,6 +844,70 @@ class Premium_Updates_Client {
                     'to_version' => $new_version
                 ));
             }
+        }
+    }
+
+    /**
+     * AJAX: Obtém preferências de notificação
+     */
+    public function ajax_get_notification_preferences() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $result = $this->api_request('my/notifications');
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao obter preferências', 'premium-updates-client'));
+        }
+    }
+
+    /**
+     * AJAX: Define preferências de notificação
+     */
+    public function ajax_set_notification_preferences() {
+        check_ajax_referer('puc_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Permissão negada', 'premium-updates-client'));
+        }
+
+        if (empty($this->license_key)) {
+            wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
+        }
+
+        $notification_email = sanitize_email($_POST['notification_email'] ?? '');
+        $notify_on_update = intval($_POST['notify_on_update'] ?? 0);
+        $notify_on_error = intval($_POST['notify_on_error'] ?? 0);
+        $notify_on_rollback = intval($_POST['notify_on_rollback'] ?? 0);
+
+        $result = $this->api_request('my/notifications', array(
+            'notification_email' => $notification_email,
+            'notify_on_update' => $notify_on_update,
+            'notify_on_error' => $notify_on_error,
+            'notify_on_rollback' => $notify_on_rollback
+        ));
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        if (!empty($result['success'])) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error($result['message'] ?? __('Erro ao salvar preferências', 'premium-updates-client'));
         }
     }
 }

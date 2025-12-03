@@ -897,6 +897,106 @@
     border-radius: 3px;
 }
 
+/* ==========================================
+   Notifications Styles
+   ========================================== */
+
+.puc-info-notifications {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.puc-info-notifications .dashicons {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    color: #0073aa;
+}
+
+.puc-info-notifications p {
+    margin: 0;
+}
+
+#puc-notifications-form fieldset label {
+    display: block;
+    padding: 8px 0;
+}
+
+#puc-notifications-form fieldset label input {
+    margin-right: 8px;
+}
+
+.puc-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 8px;
+}
+
+.puc-badge-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.puc-badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.puc-badge-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+#puc-save-notifications {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#puc-save-notifications .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.puc-save-status {
+    margin-left: 15px;
+    font-style: italic;
+}
+
+.puc-save-status.success {
+    color: #00a32a;
+}
+
+.puc-save-status.error {
+    color: #d63638;
+}
+
+.puc-notification-info {
+    margin-top: 15px;
+}
+
+.puc-notification-info table {
+    max-width: 500px;
+}
+
+.puc-notification-info th {
+    width: 180px;
+    text-align: left;
+    padding: 12px;
+    background: #f9f9f9;
+}
+
+.puc-notification-info td {
+    padding: 12px;
+}
+
 
 /* Responsive */
 @media screen and (max-width: 782px) {

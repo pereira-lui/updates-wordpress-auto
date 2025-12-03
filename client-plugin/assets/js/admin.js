@@ -984,6 +984,128 @@
         if (window.location.hash === '#backups') {
             loadBackups();
         }
+
+        // ==========================================
+        // Notifications Functions
+        // ==========================================
+
+        var notificationsLoaded = false;
+
+        // Load notification preferences
+        function loadNotificationPreferences() {
+            if (notificationsLoaded) return;
+            
+            $('#puc-notifications-loading').show();
+            $('#puc-notifications-content').hide();
+            $('#puc-notifications-error').hide();
+            
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_get_notification_preferences',
+                    nonce: pucAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        notificationsLoaded = true;
+                        renderNotificationPreferences(response.data);
+                    } else {
+                        $('#puc-notifications-loading').hide();
+                        $('#puc-notifications-error').html('<p>' + (response.data || 'Erro ao carregar preferências') + '</p>').show();
+                    }
+                },
+                error: function() {
+                    $('#puc-notifications-loading').hide();
+                    $('#puc-notifications-error').html('<p>Erro de conexão com o servidor</p>').show();
+                }
+            });
+        }
+
+        // Render notification preferences
+        function renderNotificationPreferences(data) {
+            // Fill form fields
+            $('#puc-notification-email').val(data.notification_email || '');
+            $('#puc-notify-update').prop('checked', data.notify_on_update == 1);
+            $('#puc-notify-error').prop('checked', data.notify_on_error == 1);
+            $('#puc-notify-rollback').prop('checked', data.notify_on_rollback == 1);
+            
+            // Update info section
+            var emailDisplay = data.notification_email || pucAdmin.adminEmail || 'Email do administrador';
+            $('#puc-current-notification-email').html('<code>' + escapeHtml(emailDisplay) + '</code>');
+            
+            var activeNotifications = [];
+            if (data.notify_on_update == 1) activeNotifications.push('Atualizações');
+            if (data.notify_on_error == 1) activeNotifications.push('Erros');
+            if (data.notify_on_rollback == 1) activeNotifications.push('Rollbacks');
+            
+            if (activeNotifications.length > 0) {
+                $('#puc-active-notifications').html(activeNotifications.map(function(n) {
+                    return '<span class="puc-badge puc-badge-success">' + n + '</span>';
+                }).join(' '));
+            } else {
+                $('#puc-active-notifications').html('<span style="color:#999;">Nenhuma notificação ativa</span>');
+            }
+            
+            $('#puc-notifications-loading').hide();
+            $('#puc-notifications-content').show();
+        }
+
+        // Save notification preferences
+        $('#puc-notifications-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            var $btn = $('#puc-save-notifications');
+            var $status = $('#puc-notifications-status');
+            
+            $btn.prop('disabled', true);
+            $status.removeClass('success error').text('Salvando...');
+            
+            $.ajax({
+                url: pucAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'puc_set_notification_preferences',
+                    nonce: pucAdmin.nonce,
+                    notification_email: $('#puc-notification-email').val(),
+                    notify_on_update: $('#puc-notify-update').is(':checked') ? 1 : 0,
+                    notify_on_error: $('#puc-notify-error').is(':checked') ? 1 : 0,
+                    notify_on_rollback: $('#puc-notify-rollback').is(':checked') ? 1 : 0
+                },
+                success: function(response) {
+                    $btn.prop('disabled', false);
+                    
+                    if (response.success) {
+                        $status.addClass('success').text('✓ Preferências salvas com sucesso!');
+                        
+                        // Update info section
+                        if (response.data) {
+                            renderNotificationPreferences(response.data);
+                        }
+                        
+                        setTimeout(function() {
+                            $status.text('');
+                        }, 3000);
+                    } else {
+                        $status.addClass('error').text('✗ ' + (response.data || 'Erro ao salvar'));
+                    }
+                },
+                error: function() {
+                    $btn.prop('disabled', false);
+                    $status.addClass('error').text('✗ Erro de conexão');
+                }
+            });
+        });
+
+        // Load notifications when tab is clicked
+        $(document).on('click', 'a[data-tab="notifications"]', function() {
+            loadNotificationPreferences();
+        });
+
+        // Auto-load notifications if on notifications tab
+        if (window.location.hash === '#notifications' || window.location.hash === '#tab-notifications') {
+            setTimeout(loadNotificationPreferences, 100);
+        }
     });
 
 })(jQuery);

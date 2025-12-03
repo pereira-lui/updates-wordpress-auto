@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Models\User;
 use App\Models\ActivityLog;
+use App\Services\EmailService;
 
 /**
  * Controller de Configurações
@@ -46,7 +47,13 @@ class SettingsController extends Controller {
             'smtp_user' => $_POST['smtp_user'] ?? '',
             'smtp_pass' => $_POST['smtp_pass'] ?? '',
             'smtp_from' => $_POST['smtp_from'] ?? '',
-            'smtp_from_name' => $_POST['smtp_from_name'] ?? ''
+            'smtp_from_name' => $_POST['smtp_from_name'] ?? '',
+            // Notificações do admin
+            'notify_admin_email' => $_POST['notify_admin_email'] ?? '',
+            'notify_admin_updates' => isset($_POST['notify_admin_updates']) ? '1' : '0',
+            'notify_admin_errors' => isset($_POST['notify_admin_errors']) ? '1' : '0',
+            'notify_admin_rollbacks' => isset($_POST['notify_admin_rollbacks']) ? '1' : '0',
+            'notify_admin_payments' => isset($_POST['notify_admin_payments']) ? '1' : '0'
         ];
         
         $this->saveSettings($settings);
@@ -55,6 +62,25 @@ class SettingsController extends Controller {
         
         flash('success', 'Configurações salvas com sucesso!');
         redirect('/admin/settings');
+    }
+    
+    /**
+     * Testa configuração SMTP
+     */
+    public function testSmtp() {
+        if (!verify_csrf($_POST['_token'] ?? '')) {
+            return $this->json(['success' => false, 'message' => 'Token inválido']);
+        }
+        
+        $emailService = EmailService::getInstance();
+        
+        if (!$emailService->isConfigured()) {
+            return $this->json(['success' => false, 'message' => 'SMTP não configurado. Salve as configurações primeiro.']);
+        }
+        
+        $result = $emailService->testConnection();
+        
+        return $this->json($result);
     }
     
     /**
