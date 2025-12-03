@@ -100,12 +100,17 @@ CREATE TABLE IF NOT EXISTS `payments` (
     `pix_qrcode` TEXT NULL,
     `boleto_url` VARCHAR(500) NULL,
     `invoice_url` VARCHAR(500) NULL,
+    `generate_invoice` TINYINT(1) DEFAULT 0 COMMENT 'Se deve gerar nota fiscal',
+    `invoice_status` VARCHAR(20) NULL COMMENT 'Status da nota fiscal: pending, issued, error',
+    `invoice_number` VARCHAR(50) NULL COMMENT 'Número da nota fiscal gerada',
+    `invoice_pdf_url` VARCHAR(500) NULL COMMENT 'URL do PDF da nota fiscal',
     `raw_data` JSON NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_license` (`license_id`),
     INDEX `idx_asaas` (`asaas_id`),
     INDEX `idx_status` (`status`),
+    INDEX `idx_invoice` (`generate_invoice`),
     FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 

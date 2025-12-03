@@ -116,19 +116,28 @@ $has_license = !empty($license_key) && !empty($server_url);
                         <div class="puc-renew-section">
                             <h3><?php _e('Renovar Assinatura', 'premium-updates-client'); ?></h3>
                             <form id="puc-renew-form">
-                                <select name="period" id="puc-renew-period" class="regular-text">
-                                    <option value="monthly"><?php _e('Mensal', 'premium-updates-client'); ?></option>
-                                    <option value="quarterly"><?php _e('Trimestral', 'premium-updates-client'); ?></option>
-                                    <option value="semiannual"><?php _e('Semestral', 'premium-updates-client'); ?></option>
-                                    <option value="yearly"><?php _e('Anual', 'premium-updates-client'); ?></option>
-                                </select>
+                                <div class="puc-renew-fields">
+                                    <select name="period" id="puc-renew-period" class="regular-text">
+                                        <option value="monthly"><?php _e('Mensal', 'premium-updates-client'); ?></option>
+                                        <option value="quarterly"><?php _e('Trimestral', 'premium-updates-client'); ?></option>
+                                        <option value="semiannual"><?php _e('Semestral', 'premium-updates-client'); ?></option>
+                                        <option value="yearly"><?php _e('Anual', 'premium-updates-client'); ?></option>
+                                    </select>
+                                    
+                                    <select name="payment_method" id="puc-renew-method" class="regular-text">
+                                        <option value="pix"><?php _e('PIX', 'premium-updates-client'); ?></option>
+                                        <option value="boleto"><?php _e('Boleto Bancário', 'premium-updates-client'); ?></option>
+                                    </select>
+                                    
+                                    <button type="submit" class="button button-primary"><?php _e('Renovar Agora', 'premium-updates-client'); ?></button>
+                                </div>
                                 
-                                <select name="payment_method" id="puc-renew-method" class="regular-text">
-                                    <option value="pix"><?php _e('PIX', 'premium-updates-client'); ?></option>
-                                    <option value="boleto"><?php _e('Boleto Bancário', 'premium-updates-client'); ?></option>
-                                </select>
-                                
-                                <button type="submit" class="button button-primary"><?php _e('Renovar Agora', 'premium-updates-client'); ?></button>
+                                <div class="puc-renew-invoice">
+                                    <label>
+                                        <input type="checkbox" name="generate_invoice" id="puc-renew-invoice" value="1">
+                                        <?php _e('Desejo receber nota fiscal', 'premium-updates-client'); ?>
+                                    </label>
+                                </div>
                             </form>
                             <div id="puc-renew-result"></div>
                         </div>
@@ -180,6 +189,16 @@ $has_license = !empty($license_key) && !empty($server_url);
                                             <option value="pix"><?php _e('PIX (aprovação imediata)', 'premium-updates-client'); ?></option>
                                             <option value="boleto"><?php _e('Boleto Bancário (até 3 dias úteis)', 'premium-updates-client'); ?></option>
                                         </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th><label for="puc-generate-invoice"><?php _e('Nota Fiscal', 'premium-updates-client'); ?></label></th>
+                                    <td>
+                                        <label>
+                                            <input type="checkbox" name="generate_invoice" id="puc-generate-invoice" value="1">
+                                            <?php _e('Desejo receber nota fiscal deste pagamento', 'premium-updates-client'); ?>
+                                        </label>
+                                        <p class="description"><?php _e('A nota fiscal será emitida após a confirmação do pagamento e enviada para seu e-mail.', 'premium-updates-client'); ?></p>
                                     </td>
                                 </tr>
                             </table>

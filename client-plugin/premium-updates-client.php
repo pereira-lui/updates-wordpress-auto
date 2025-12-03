@@ -3,7 +3,7 @@
  * Plugin Name: Premium Updates Client
  * Plugin URI: https://github.com/pereira-lui/updates-wordpress-auto
  * Description: Cliente para receber atualizações automáticas de plugins premium. Inclui sistema de assinatura integrado.
- * Version: 3.0.0
+ * Version: 3.1.0
  * Author: Lui Pereira
  * Author URI: https://github.com/pereira-lui
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('PUC_VERSION', '3.0.0');
+define('PUC_VERSION', '3.1.0');
 define('PUC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PUC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -564,6 +564,7 @@ class Premium_Updates_Client {
         $document = isset($_POST['document']) ? sanitize_text_field($_POST['document']) : '';
         $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : 'monthly';
         $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : 'pix';
+        $generate_invoice = !empty($_POST['generate_invoice']) ? 1 : 0;
 
         if (empty($server_url) || empty($name) || empty($email)) {
             wp_send_json_error(__('Preencha todos os campos obrigatórios', 'premium-updates-client'));
@@ -577,7 +578,8 @@ class Premium_Updates_Client {
             'document' => $document,
             'site_url' => home_url('/'),
             'period' => $period,
-            'payment_method' => $payment_method
+            'payment_method' => $payment_method,
+            'generate_invoice' => $generate_invoice
         ));
 
         if (is_wp_error($result)) {
@@ -610,6 +612,7 @@ class Premium_Updates_Client {
 
         $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : '';
         $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : 'pix';
+        $generate_invoice = !empty($_POST['generate_invoice']) ? 1 : 0;
 
         if (empty($this->license_key)) {
             wp_send_json_error(__('Nenhuma licença configurada', 'premium-updates-client'));
@@ -618,7 +621,8 @@ class Premium_Updates_Client {
         $result = $this->api_request('subscription/renew', array(
             'license_key' => $this->license_key,
             'period' => $period,
-            'payment_method' => $payment_method
+            'payment_method' => $payment_method,
+            'generate_invoice' => $generate_invoice
         ));
 
         if (is_wp_error($result)) {

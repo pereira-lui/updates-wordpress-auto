@@ -260,6 +260,7 @@
             var document = $('#puc-customer-cpf').val();
             var period = $('#puc-selected-period').val();
             var paymentMethod = $('#puc-payment-method').val();
+            var generateInvoice = $('#puc-generate-invoice').is(':checked') ? 1 : 0;
             
             if (!name || !email || !document || !period) {
                 alert('Preencha todos os campos obrigatórios');
@@ -279,7 +280,8 @@
                     email: email,
                     document: document,
                     period: period,
-                    payment_method: paymentMethod
+                    payment_method: paymentMethod,
+                    generate_invoice: generateInvoice
                 },
                 success: function(response) {
                     if (response.success) {
@@ -341,6 +343,7 @@
             var $btn = $(this).find('button[type="submit"]');
             var $result = $('#puc-renew-result');
             var originalText = $btn.text();
+            var generateInvoice = $('#puc-renew-invoice').is(':checked') ? 1 : 0;
             
             $btn.prop('disabled', true).html('<span class="puc-spinner"></span> ' + pucAdmin.strings.processing);
             
@@ -351,7 +354,8 @@
                     action: 'puc_renew_subscription',
                     nonce: pucAdmin.nonce,
                     period: $('#puc-renew-period').val(),
-                    payment_method: $('#puc-renew-method').val()
+                    payment_method: $('#puc-renew-method').val(),
+                    generate_invoice: generateInvoice
                 },
                 success: function(response) {
                     if (response.success) {

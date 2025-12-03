@@ -20,6 +20,12 @@ class Payment {
     const METHOD_BOLETO = 'boleto';
     const METHOD_CREDIT_CARD = 'credit_card';
     
+    // Status da nota fiscal
+    const INVOICE_PENDING = 'pending';
+    const INVOICE_ISSUED = 'issued';
+    const INVOICE_ERROR = 'error';
+    const INVOICE_CANCELLED = 'cancelled';
+    
     public static function all($filters = []) {
         $sql = "SELECT p.*, l.client_name, l.client_email, l.license_key, l.period
                 FROM payments p
@@ -178,5 +184,66 @@ class Payment {
     public static function count() {
         $result = Database::selectOne("SELECT COUNT(*) as total FROM payments");
         return $result ? $result->total : 0;
+    }
+    
+    /**
+     * Busca pagamentos que precisam de nota fiscal
+     */
+    public static function pendingInvoices() {
+        return Database::select(
+            "SELECT p.*, l.client_name, l.client_email, l.client_document
+             FROM payments p
+             LEFT JOIN licenses l ON p.license_id = l.id
+             WHERE p.generate_invoice = 1 
+               AND p.status IN ('confirmed', 'received')
+               AND (p.invoice_status IS NULL OR p.invoice_status = 'pending')
+             ORDER BY p.paid_at ASC"
+        );
+    }
+    
+    /**
+     * Atualiza informações da nota fiscal
+     */
+    public static function updateInvoice($id, $invoiceNumber, $pdfUrl, $status = self::INVOICE_ISSUED) {
+        return self::update($id, [
+            'invoice_status' => $status,
+            'invoice_number' => $invoiceNumber,
+            'invoice_pdf_url' => $pdfUrl
+        ]);
+    }
+    
+    /**
+     * Retorna labels de status da nota fiscal
+     */
+    public static function getInvoiceStatusLabel($status) {
+        $labels = [
+            self::INVOICE_PENDING => 'Pendente',
+            self::INVOICE_ISSUED => 'Emitida',
+            self::INVOICE_ERROR => 'Erro',
+            self::INVOICE_CANCELLED => 'Cancelada'
+        ];
+        return $labels[$status] ?? $status;
+    }
+    
+    /**
+     * Conta pagamentos com nota fiscal
+     */
+    public static function countWithInvoice() {
+        $result = Database::selectOne(
+            "SELECT COUNT(*) as total FROM payments WHERE generate_invoice = 1"
+        );
+        return $result ? $result->total : 0;
+    }
+    
+    /**
+     * Conta notas fiscais por status
+     */
+    public static function countInvoicesByStatus() {
+        return Database::select(
+            "SELECT invoice_status, COUNT(*) as total 
+             FROM payments 
+             WHERE generate_invoice = 1 
+             GROUP BY invoice_status"
+        );
     }
 }

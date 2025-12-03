@@ -219,6 +219,28 @@
     border-left: 4px solid #d63638;
 }
 
+/* Renew Fields */
+.puc-renew-fields {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.puc-renew-invoice {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+}
+
+.puc-renew-invoice label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
 /* PIX Result */
 .puc-pix-result {
     background: #f0f6fc;

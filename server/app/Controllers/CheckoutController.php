@@ -77,12 +77,21 @@ class CheckoutController extends Controller {
         $siteUrl = $input['site_url'] ?? '';
         $period = $input['period'] ?? 'monthly';
         $paymentMethod = $input['payment_method'] ?? 'pix';
+        $generateInvoice = !empty($input['generate_invoice']) ? 1 : 0;
         
         // Validação
         if (empty($name) || empty($email)) {
             return $this->json([
                 'success' => false,
                 'message' => 'Nome e email são obrigatórios'
+            ], 400);
+        }
+        
+        // Se solicitar nota fiscal, documento é obrigatório
+        if ($generateInvoice && empty($document)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'CPF/CNPJ é obrigatório para emissão de nota fiscal'
             ], 400);
         }
         
@@ -161,6 +170,8 @@ class CheckoutController extends Controller {
             'due_date' => $payment['dueDate'],
             'pix_code' => null,
             'boleto_url' => $payment['bankSlipUrl'] ?? null,
+            'generate_invoice' => $generateInvoice,
+            'invoice_status' => $generateInvoice ? Payment::INVOICE_PENDING : null,
             'raw_data' => json_encode($payment)
         ]);
         
@@ -194,6 +205,7 @@ class CheckoutController extends Controller {
         $licenseKey = $input['license_key'] ?? '';
         $period = $input['period'] ?? null;
         $paymentMethod = $input['payment_method'] ?? 'pix';
+        $generateInvoice = !empty($input['generate_invoice']) ? 1 : 0;
         
         if (empty($licenseKey)) {
             return $this->json([
@@ -209,6 +221,14 @@ class CheckoutController extends Controller {
                 'success' => false,
                 'message' => 'Licença não encontrada'
             ], 404);
+        }
+        
+        // Se solicitar nota fiscal, documento é obrigatório
+        if ($generateInvoice && empty($license->client_document)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'CPF/CNPJ não cadastrado. Atualize seus dados para emitir nota fiscal.'
+            ], 400);
         }
         
         // Usa o período atual se não especificado
@@ -272,6 +292,8 @@ class CheckoutController extends Controller {
             'due_date' => $payment['dueDate'],
             'pix_code' => null,
             'boleto_url' => $payment['bankSlipUrl'] ?? null,
+            'generate_invoice' => $generateInvoice,
+            'invoice_status' => $generateInvoice ? Payment::INVOICE_PENDING : null,
             'raw_data' => json_encode($payment)
         ]);
         
